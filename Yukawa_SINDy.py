@@ -26,8 +26,9 @@ integrator_keywords['method'] = 'LSODA' # Livermore Solver for Ordinary Differen
 integrator_keywords['atol'] = 1e-12 # set absolute tolerance
 
 
-class Yukawa_simulation:
+class Simulation:
     '''
+    Description: Base class for simulation objects.
     Attributes:
         Simulation parameters
             duration: duration of simulation, positional arg
@@ -51,9 +52,6 @@ class Yukawa_simulation:
 
 
     Methods (in the same order they are written in this class):
-        simulate(duration, dt=0.001, x0=1, v0=0.01)
-            solves the Yukawa equation of motion for given parameters using solve_ivp from scipy.
-            Data is stored in the attribute x.
         add_gaussian_noise(noise_level=0.01)
             adds gaussian noise to the data with standard deviation noise_level. Does not add
             if already noisy. Moves clean data to attribute x_clean, and stores noisy data in 
@@ -70,13 +68,6 @@ class Yukawa_simulation:
             plots the data. If clean, plots only the clean data; if noisy, plots both the clean
             and noisy data.
     '''
-
-    # # Class dict for integrator keywords
-    # integrator_keywords = {}
-    # integrator_keywords['rtol'] = 1e-12 # set relative tolerance
-    # integrator_keywords['method'] = 'LSODA' # related to Livermore Solver for Ordinary Differential Equations? (LSODE)
-    # integrator_keywords['atol'] = 1e-12 # set absolute tolerance
-
     ###############################################################################################
     # Class Constructor
     ###############################################################################################
@@ -205,25 +196,6 @@ class Yukawa_simulation:
     # Class Methods
     ###############################################################################################
 
-    def simulate(self, duration, dt=0.001, x0=1.0, v0=0.01):
-        # syntax: simulate(3, dt=0.001, x0=1, v0=0.01)
-        # Generate measurement data
-        t = np.arange(0, duration, dt)
-        t_span = (t[0], t[-1])
-
-        x0_train = [x0, v0]
-        def Yukawa_EOM(t, x): return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
-        x_clean = solve_ivp(Yukawa_EOM, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
-        # save parameters as attributes
-        self.duration = duration
-        self.dt = dt
-        self.x0 = x0
-        self.v0 = v0
-        # save data as attributes
-        self.t=t
-        self.x=x_clean
-        return self
-    
     def add_gaussian_noise(self, noise_level=0.01):
         if self.x is None:
             raise Exception("No simulation performed. Use .simulate() first.")
@@ -251,6 +223,7 @@ class Yukawa_simulation:
         self.is_noisy = True
         self.noise_level = noise_level
         return self
+    
     def delete_noise(self):
         if self.is_noisy:
             self.x = self.x_clean
@@ -299,6 +272,40 @@ class Yukawa_simulation:
             self.t_full = None
         else:
             raise Exception("Data was not subsampled.")
+        return self
+
+
+class Yukawa_simulation(Simulation):
+    '''
+    Description: Class for simulating the Yukawa equation of motion for a two-body system.
+                 Inherits from Simulation
+    Methods (in the same order they are written in this class):
+        simulate(duration, dt=0.001, x0=1, v0=0.01)
+            solves the Yukawa equation of motion for given parameters using solve_ivp from scipy.
+            Data is stored in the attribute x.
+    '''
+
+    ###############################################################################################
+    # Class Methods
+    ###############################################################################################
+
+    def simulate(self, duration, dt=0.001, x0=1.0, v0=0.01):
+        # syntax: simulate(3, dt=0.001, x0=1, v0=0.01)
+        # Generate measurement data
+        t = np.arange(0, duration, dt)
+        t_span = (t[0], t[-1])
+
+        x0_train = [x0, v0]
+        def Yukawa_EOM(t, x): return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+        x_clean = solve_ivp(Yukawa_EOM, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
+        # save parameters as attributes
+        self.duration = duration
+        self.dt = dt
+        self.x0 = x0
+        self.v0 = v0
+        # save data as attributes
+        self.t=t
+        self.x=x_clean
         return self
     
     def plot(self):
