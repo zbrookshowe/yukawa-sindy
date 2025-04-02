@@ -33,8 +33,6 @@ class Simulation:
         Simulation parameters
             duration: duration of simulation, positional arg
             dt: timestep, default 0.001, kwarg
-            x0: initial position, default 1, kwarg
-            v0: initial velocity, default 0.01, kwarg
         boolean flags:
             is_noisy: bool, is data noisy? default False
             is_subsampled: bool, is data subsampled? default False
@@ -75,8 +73,6 @@ class Simulation:
     def __init__(self):
         self.duration = None
         self.dt = None
-        self.x0 = None
-        self.v0 = None
         self.is_noisy = False
         self.noise_level = 0
         self.is_subsampled = False
@@ -110,20 +106,6 @@ class Simulation:
     @dt.setter
     def dt(self, dt):
         self._dt = dt
-    
-    @property
-    def x0(self):
-        return self._x0
-    @x0.setter
-    def x0(self, x0):
-        self._x0 = x0
-    
-    @property
-    def v0(self):
-        return self._v0
-    @v0.setter
-    def v0(self, v0):
-        self._v0 = v0
 
     # Not working for some reason:
     # @property
@@ -273,31 +255,55 @@ class Simulation:
         else:
             raise Exception("Data was not subsampled.")
         return self
+###############################################################################################
+# END OF Simulation CLASS
+###############################################################################################
 
 
 class Yukawa_simulation(Simulation):
     '''
     Description: Class for simulating the Yukawa equation of motion for a two-body system.
                  Inherits from Simulation
+    Simulation parameters:
+        x0: initial position, default 1, kwarg
+        v0: initial velocity, default 0.01, kwarg
     Methods (in the same order they are written in this class):
         simulate(duration, dt=0.001, x0=1, v0=0.01)
             solves the Yukawa equation of motion for given parameters using solve_ivp from scipy.
             Data is stored in the attribute x.
     '''
+    def __init__(self):
+        super().__init__()
+        self.x0 = None
+        self.v0 = None
+
+    @property
+    def x0(self):
+        return self._x0
+    @x0.setter
+    def x0(self, x0):
+        self._x0 = x0
+    
+    @property
+    def v0(self):
+        return self._v0
+    @v0.setter
+    def v0(self, v0):
+        self._v0 = v0
 
     ###############################################################################################
     # Class Methods
     ###############################################################################################
-
-    def simulate(self, duration, dt=0.001, x0=1.0, v0=0.01):
+    def Yukawa_EOM(t, x): 
+        return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+    def simulate(self, duration, func=Yukawa_EOM, dt=0.001, x0=1.0, v0=0.01):
         # syntax: simulate(3, dt=0.001, x0=1, v0=0.01)
         # Generate measurement data
         t = np.arange(0, duration, dt)
         t_span = (t[0], t[-1])
 
         x0_train = [x0, v0]
-        def Yukawa_EOM(t, x): return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
-        x_clean = solve_ivp(Yukawa_EOM, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
+        x_clean = solve_ivp(func, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
         # save parameters as attributes
         self.duration = duration
         self.dt = dt
@@ -329,6 +335,10 @@ class Yukawa_simulation(Simulation):
                 else:
                     plt.title("Clean Data")
         plt.legend()
+
+###############################################################################################
+# END OF Yukawa_simulation CLASS
+###############################################################################################
 
 
 ###############################################################################################
