@@ -11,7 +11,8 @@ from numpy import random
 
 integrator_keywords = {}
 integrator_keywords['rtol'] = 1e-12 # set relative tolerance
-integrator_keywords['method'] = 'LSODA' # Livermore Solver for Ordinary Differential Equations with Automatic Stiffness Adjustment
+# use Livermore Solver for Ordinary Differential Equations with Automatic Stiffness Adjustment
+integrator_keywords['method'] = 'LSODA' 
 integrator_keywords['atol'] = 1e-12 # set absolute tolerance
 
 import importlib
@@ -85,12 +86,13 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     def Yukawa_3body_EOM(self,t, x):
         '''
         Description: 
-            this is the equations of motion for a 3-body system in 2 dimensions. The particle indices in this case are 
-            0, 1, and 2. The equations of motion are coded below in first order form, which means the 2nd order ODE is
-            split into 2 first order ODEs. Therefore, we have 12 first order ODEs. Half of these, though, are the
-            trivial relation of d/dt (xi) = (vxi), and the other half are the equations of motion of the form 
-            d/dt (vxi) = f(x0,x1,x2). Let the position of the ith particle be given by (xi, yi) and the velocity by 
-            (vxi, vyi). The data is stored in the numpy array as follows:
+            this is the equations of motion for a 3-body system in 2 dimensions. The particle 
+            indices in this case are 0, 1, and 2. The equations of motion are coded below in first
+            order form, which means the 2nd order ODE is split into 2 first order ODEs. Therefore, 
+            we have 12 first order ODEs. Half of these, though, are the trivial relation of 
+            d/dt (xi) = (vxi), and the other half are the equations of motion of the form 
+            d/dt (vxi) = f(x0,x1,x2). Let the position of the ith particle be given by (xi, yi) and
+            the velocity by (vxi, vyi). The data is stored in the numpy array as follows:
 
             x[0] = x0, 
             x[1] = vx0, 
@@ -175,17 +177,19 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     def generate_init_cond(self, std_dev=0.1, print=False):
         '''
         Description:
-            Creates random initial conditions to use in the simulation. Note: if not run before method "simulate()", 
-            simulation will use default initial conditions. In the case of an attractive potential, all the initial
-            positions and velocities are drawn at random from a normal distribution centered at the origin with a 
-            standard deviation of std_dev. In the case of a repulsive potential, the initial positions are drawn from a 
-            normal distribution centered at the origin with a standard deviation of std_dev, and the initial velocities
-            are calculated from those positions such that they point radially inward towards the origin.
+            Creates random initial conditions to use in the simulation. Note: if not run before
+            method "simulate()", simulation will use default initial conditions. In the case of an 
+            attractive potential, all the initial positions and velocities are drawn at random from
+            a normal distribution centered at the origin with a standard deviation of std_dev. In 
+            the case of a repulsive potential, the initial positions are drawn from a normal 
+            distribution centered at the origin with a standard deviation of std_dev, and the 
+            initial velocitiesare calculated from those positions such that they point radially 
+            inward towards the origin.
         '''
         
         # Attractive case:
-        # create random initial conditions from normal distribution centered at the origin with standard deviation 
-        # std_dev
+        # create random initial conditions from normal distribution centered at the origin with
+        # standard deviation std_dev
         if self.potential_type == "attractive":
             init_cond = self.rng.normal(0.0, std_dev, (12,))
             # save as attribute
@@ -252,6 +256,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
             ax.plot(self.init_cond[i],self.init_cond[i+2], colors[i//4] + 'o', label=label + " start")
         ax.legend()
         fig.tight_layout()
+        plt.show()
 
 
     def subtract_data(self,x_simulated):
@@ -276,26 +281,28 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         while os.path.exists(filename_to_check):
             counter += 1
             filename_to_check = filename[:-4] + f"_{counter}.obj"
-            print(filename_to_check)
-        print(filename_to_check) 
         with open(filename_to_check, 'wb') as f:
             pkl.dump(self, f)
 
 
 # END CLASS
-######################################################################################################
+###################################################################################################
 
 
-######################################################################################################
+###################################################################################################
 # Functions
-######################################################################################################
+###################################################################################################
 
-def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10, potential_type:str='attractive', rng:np.random.Generator=None, save_data:bool=True):
+def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
+                      potential_type:str='attractive', rng:np.random.Generator=None, 
+                      save_data:bool=True):
     '''
     Syntax: multiple_simulate()
-    Description: simulate integer number 'n_trajectories' of equal duration 'duration' with timestep 'dt' for a potential type of 'potential_type'
-        conditions, returns list of Yukawa3body objects. Can also input a random number generator object using kwarg 'rng' as a 
-        numpy.random.Generator object. If bool 'save_data' is True, saves data to .obj file in folder 'data/YYMMDD_runs'.
+    Description: simulate integer number 'n_trajectories' of equal duration 'duration' with
+        timestep 'dt' for a potential type of 'potential_type'conditions, returns list of
+        Yukawa3body objects. Can also input a random number generator object using kwarg 'rng' as a
+        numpy.random.Generator object. If bool 'save_data' is True, saves data to .obj file in 
+        folder 'data/YYMMDD_runs'.
     '''
     default_seed = 346734
     if rng is None:
@@ -311,9 +318,11 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10, potential_t
         sim_list.append(sim)
         # save data if desired
         if save_data:
+            print("saving data for trajectory", i)
             # generate directoryname
             timestr = time.strftime("%Y%m%d")
             directoryname = f"data/{timestr}_runs"
+            sim.save_data(directoryname=directoryname)
     return sim_list
 
 
@@ -347,13 +356,12 @@ def plot_multiple(sim_list:list, which:str='position'):
             # axs[i].arrow(sim_list[i].init_cond[j],sim_list[i].init_cond[j+2],5e-2*sim_list[i].init_cond[j+1],5e-2*sim_list[i].init_cond[j+3], color=colors[j//4], width=0.0005)#, label=label + " init. vel.")
         axs[i].legend()
     fig.tight_layout()
+    plt.show()
 
 def main():
-    sim_list = multiple_simulate()
-    for sim in sim_list:
-        print("saving data for trajectory", sim_list.index(sim))
-        sim.save_data(directoryname="data/test2")
-        # time.sleep(1)
+    rng = np.random.default_rng(seed=346734)
+    sim_list = multiple_simulate(duration=1e-1,potential_type='repulsive', rng=rng)
+    plot_multiple(sim_list=sim_list)
 
 if __name__ == "__main__":
     print("running main function")
