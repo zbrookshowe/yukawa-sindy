@@ -264,6 +264,9 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     
 
     def save_data(self, directoryname:str='data'):
+        # create directory if it doesn't exist
+        if not os.path.exists(directoryname):
+            os.makedirs(directoryname)
         # create filename using date and time
         timestr = time.strftime("%Y%m%d_%H%M%S")
         filename = f"{directoryname}/Yukawa3body_{timestr}.obj"
@@ -287,9 +290,13 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 # Functions
 ######################################################################################################
 
-def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories=10, potential_type:str='attractive', rng=None):
-    # desc: simulate n_trajectories of equal duration trajectories with different random initial 
-    # conditions, returns list of Yukawa3body objects
+def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10, potential_type:str='attractive', rng:np.random.Generator=None, save_data:bool=True):
+    '''
+    Syntax: multiple_simulate()
+    Description: simulate integer number 'n_trajectories' of equal duration 'duration' with timestep 'dt' for a potential type of 'potential_type'
+        conditions, returns list of Yukawa3body objects. Can also input a random number generator object using kwarg 'rng' as a 
+        numpy.random.Generator object. If bool 'save_data' is True, saves data to .obj file in folder 'data/YYMMDD_runs'.
+    '''
     default_seed = 346734
     if rng is None:
         rng = np.random.default_rng(seed=default_seed)
@@ -302,6 +309,11 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories=10, potential_type:
         sim.generate_init_cond()
         sim.simulate(duration,dt=dt)
         sim_list.append(sim)
+        # save data if desired
+        if save_data:
+            # generate directoryname
+            timestr = time.strftime("%Y%m%d")
+            directoryname = f"data/{timestr}_runs"
     return sim_list
 
 
@@ -336,12 +348,13 @@ def plot_multiple(sim_list:list, which:str='position'):
         axs[i].legend()
     fig.tight_layout()
 
-    def main():
-        sim_list = multiple_simulate()
-        for sim in sim_list:
-            print("saving data for trajectory", sim_list.index(sim))
-            sim.save_data(directoryname="data/test2")
-            # time.sleep(1)
+def main():
+    sim_list = multiple_simulate()
+    for sim in sim_list:
+        print("saving data for trajectory", sim_list.index(sim))
+        sim.save_data(directoryname="data/test2")
+        # time.sleep(1)
 
-    if __name__ == "__main__":
-        main()
+if __name__ == "__main__":
+    print("running main function")
+    main()
