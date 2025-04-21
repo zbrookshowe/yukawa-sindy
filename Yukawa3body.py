@@ -1,3 +1,10 @@
+'''
+File:         Yukawa3body.py
+Written by:   Brooks Howe
+Last updated: 2025/04/21
+Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
+    particles. Also includes fitting functionality
+'''
 import numpy as np
 import matplotlib.pyplot as plt
 import pysindy as ps
