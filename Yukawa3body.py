@@ -267,10 +267,23 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
 
     def subtract_data(self,x_simulated):
+        '''
+        Description: transforms data to be in the subtracted space of positions and velocities such
+        that:
+        [[x0],              [[x0-x1],
+         [vx0],              [vx0-vx1],
+         [y0],               [y0-y1],
+         [vy0],     ==>      [vy0-vy1],
+         [x1],               [x1-x2],
+         [vx1],              [vx1-vx2],
+         ...,                ...,
+         [vy2]]              [vy2-vy0]]
+        '''
         # generate repeated list of indices
         idxs = np.tile(np.arange(0,12),2)
         # transform labels and data to be subtracted as explained above
-        x_subtracted_labels = np.hstack([self.labels[i] + "-" + self.labels[j] for i,j in zip(idxs[:12],idxs[4:])])
+        x_subtracted_labels = np.hstack([self.labels[i] + "-" 
+                                         + self.labels[j] for i,j in zip(idxs[:12],idxs[4:])])
         x_subtracted = np.vstack([self.x[:,i]-self.x[:,j] for i,j in zip(idxs[:12],idxs[4:])]).T
         return x_subtracted, x_subtracted_labels
     
