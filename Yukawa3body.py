@@ -32,15 +32,17 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     # Class Constructor
     ###############################################################################################
 
-    def __init__(self, potential_type = "repulsive", rng=None):
-        super().__init__()
-        self.init_cond = [0, 1e-2, 0, 1e-2,   1, -1e-2, 0, 1e-2,   0, 1e-2, 1, -1e-2] # default values are bad, need to pull new ones at some point
-        self.labels = np.array([(f"x{i}", f"vx{i}", f"y{i}", f"vy{i}") for i in range(3)]).reshape((12,))
-        
+    def __init__(self, potential_type:str = "repulsive", rng:np.random.Generator = None):
+        super().__init__() # inherit attributes from parent class
+        self.init_cond = [0, 1e-2, 0, 1e-2,   1, -1e-2, 0, 1e-2,   0, 1e-2, 1, -1e-2] 
+        # above default values are bad, need to pull new ones at some point
+        self.labels = np.array([(f"x{i}", f"vx{i}", f"y{i}", f"vy{i}") for i in range(3)]
+                               ).reshape((12,))
         self.is_subtracted = False
-        self.x_subtracted = None
+        self.x_unsubtracted = None
+
         # str var potential can be 'attractive' or 'repulsive'.
-        if potential_type != 'attractive' or potential_type != 'repulsive':
+        if potential_type == 'attractive' or potential_type == 'repulsive':
             self.potential_type = potential_type
         else:
             raise ValueError("attribute 'potential_type' must be either str 'attractive' or 'repulsive'")
@@ -73,11 +75,11 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         self._labels = labels
 
     @property
-    def x_subtracted(self):
-        return self._x_subtracted
-    @x_subtracted.setter
-    def x_subtracted(self, x_subtracted):
-        self._x_subtracted = x_subtracted
+    def x_unsubtracted(self):
+        return self._x_unsubtracted
+    @x_unsubtracted.setter
+    def x_unsubtracted(self, x_unsubtracted):
+        self._x_unsubtracted = x_unsubtracted
 
     @property
     def potential_type(self):
@@ -284,8 +286,8 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
             raise Exception("data has already been transformed to be subtracted")
         if self.x is None:
             raise Exception("No simulation performed. Use .simulate() first.")
-        # save clean data to attribute 'x_clean' before transforming
-        self.x_clean = self.x
+        # save unsubtracted data to attribute 'x_unsubtracted' before transforming
+        self.x_unsubtracted = self.x
 
         # generate repeated list of indices
         idxs = np.tile(np.arange(0,12),2)
@@ -426,15 +428,20 @@ def generate_3body_library():
 
 def main():
     rng = np.random.default_rng(seed=346734)
-    sim_list = multiple_simulate(duration=1e-1,potential_type='repulsive', rng=rng)
+    sim_list = multiple_simulate(duration=1e-1,potential_type='repulsive', rng=rng, save_data=False)
     # plot_multiple(sim_list=sim_list)
     generalized_library = generate_3body_library()
     opt = ps.STLSQ(threshold=0.5)
     # loop through sim_list to transform data and build list x_train_subtracted and extract out 
     # labels
+    use_noisy = input("use noisy data? (y/n) ")
+    if use_noisy == 'y':
+        noise_level = float(input("noise level: "))
     x_train_subtracted = []
     for sim in sim_list:
         sim.subtract_data()
+        if use_noisy == 'y':
+            sim.add_gaussian_noise(noise_level=noise_level)
         x_train_subtracted.append(sim.x)
     x_train_labels = sim.labels
     dt = sim.dt
