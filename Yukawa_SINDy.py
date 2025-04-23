@@ -184,7 +184,8 @@ class Simulation:
         if self.is_noisy:
             raise Exception("Data is already noisy, no new noise added.")
         if self.is_subsampled:
-            raise Exception("Cannot add noise to subsampled data, create new sim object to add noise.")
+            raise Exception("Cannot add noise to subsampled data, " \
+                            + "create new sim object to add noise.")
         # Adds noise to data
         # generate noise
         dims = np.shape(self.x)
@@ -317,7 +318,9 @@ class Yukawa_simulation(Simulation):
     def plot(self):
         if self.x is None:
             raise Exception("No simulation performed. Use simulate() first.")
-        labels = np.array([["noisy position", "clean position"], ["noisy velocity", "clean velocity"]])
+        labels = np.array([["noisy position", "clean position"], 
+                           ["noisy velocity", "clean velocity"]]
+                           )
         plt.xlabel("time (s)")
         for i in range(self.x.shape[1]):
             if self.is_noisy:
@@ -389,7 +392,8 @@ def generate_Yukawa_library():
     return custom_library
 
 
-def fit_Yukawa_model(sim_obj: Yukawa_simulation,opt_str: str='stlsq', hparam: float=0.1, return_hparam_str: bool=False):
+def fit_Yukawa_model(sim_obj: Yukawa_simulation,opt_str: str='stlsq', hparam: float=0.1, 
+                     return_hparam_str: bool=False):
     # Syntax: fit_Yukawa_model(sim1, 'stlsq', 0.1)
     # Description: Fits SINDy model for the Yukawa equation
     # with given optimizer and hyperparameter. Optionally 
@@ -527,7 +531,8 @@ def plot_complexity(complexity, hparams, first, last, step):
     plt.plot(hparams, complexity, '.')
 
 
-def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, threshold_scan, plot_prediction: bool = False):
+def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, threshold_scan, 
+                plot_prediction: bool = False):
     # calculate x_dot with finite differences from clean test trajectory
     fd = FiniteDifference()
     xdot_test = fd._differentiate(test_sim.x, test_sim.t)
@@ -581,7 +586,8 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
     
     # scan through different hyperparameters
     for hparam in hspace:
-        noisymodel, hparam_str = fit_Yukawa_model(sim_obj, opt_str=opt_str, hparam=hparam, return_hparam_str=True)
+        noisymodel, hparam_str = fit_Yukawa_model(sim_obj, opt_str=opt_str, hparam=hparam, 
+                                                  return_hparam_str=True)
         new_coefs = noisymodel.coefficients().T # extract coefficient array from model
         new_coefs = new_coefs[np.newaxis, ...] # resize to append
         coefs = np.append(coefs, new_coefs, axis=0) # append to 'coefs' array
