@@ -266,7 +266,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         plt.show()
 
 
-    def subtract_data(self,x_simulated):
+    def subtract_data(self):
         '''
         Description: transforms data to be in the subtracted space of positions and velocities such
         that:
@@ -279,13 +279,26 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
          ...,                ...,
          [vy2]]              [vy2-vy0]]
         '''
+        # check if data is already subtracted
+        if self.is_subtracted:
+            raise Exception("data has already been transformed to be subtracted")
+        if self.x is None:
+            raise Exception("No simulation performed. Use .simulate() first.")
+        # save clean data to attribute 'x_clean' before transforming
+        self.x_clean = self.x
+
         # generate repeated list of indices
         idxs = np.tile(np.arange(0,12),2)
         # transform labels and data to be subtracted as explained above
         x_subtracted_labels = np.hstack([self.labels[i] + "-" 
                                          + self.labels[j] for i,j in zip(idxs[:12],idxs[4:])])
         x_subtracted = np.vstack([self.x[:,i]-self.x[:,j] for i,j in zip(idxs[:12],idxs[4:])]).T
-        return x_subtracted, x_subtracted_labels
+        # save data as attributes
+        self.x = x_subtracted
+        self.labels = x_subtracted_labels
+        # set attribute 'is_subtracted' to True
+        self.is_subtracted = True
+        return self
     
 
     def save_data(self, directoryname:str='data'):
@@ -378,10 +391,59 @@ def plot_multiple(sim_list:list, which:str='position'):
     fig.tight_layout()
     plt.show()
 
+def generate_3body_library():
+    # define custom library of terms with only yukawa (rational) terms
+    library_functions = [
+        lambda x, y: x * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
+        lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
+        lambda x, y: x * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2),
+        lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2)
+    ]
+    library_function_names = [
+        lambda x,y: x + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )",
+        lambda x,y: y + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )",
+        lambda x,y: x + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )^(3/2)",
+        lambda x,y: y + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )^(3/2)"
+    ]
+    yukawa_library = ps.CustomLibrary(
+        library_functions=library_functions, 
+        function_names=library_function_names
+    )
+
+    # create identity library for the definition terms x' = v, etc.
+    identity_library = ps.IdentityLibrary()
+
+    # input only velocities to first library and only positions to second library
+    num_features:int = 12 # x_train.shape[1] # need to change this later to be general
+    pos_idxs = [i for i in range(0,num_features,2)]
+    vel_idxs = [i+1 for i in range(0,num_features,2)]
+    inputs_per_library = np.array([vel_idxs,pos_idxs[0:2]*3,pos_idxs[2:4]*3,pos_idxs[4:6]*3])
+    generalized_library = ps.GeneralizedLibrary(
+        [identity_library] + 3*[yukawa_library],
+        inputs_per_library=inputs_per_library
+    )
+    return generalized_library
+
 def main():
     rng = np.random.default_rng(seed=346734)
     sim_list = multiple_simulate(duration=1e-1,potential_type='repulsive', rng=rng)
-    plot_multiple(sim_list=sim_list)
+    # plot_multiple(sim_list=sim_list)
+    generalized_library = generate_3body_library()
+    opt = ps.STLSQ(threshold=0.5)
+    # loop through sim_list to transform data and build list x_train_subtracted and extract out 
+    # labels
+    x_train_subtracted = []
+    for sim in sim_list:
+        sim.subtract_data()
+        x_train_subtracted.append(sim.x)
+    x_train_labels = sim.labels
+    dt = sim.dt
+    # fit a SINDy model
+    model = ps.SINDy(optimizer=opt, feature_names=x_train_labels, 
+                     feature_library=generalized_library
+                     )
+    model.fit(x_train_subtracted, t=dt, multiple_trajectories=True)
+    model.print()
 
 if __name__ == "__main__":
     print("running main function")
