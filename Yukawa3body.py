@@ -1,7 +1,7 @@
 '''
 File:         Yukawa3body.py
 Written by:   Brooks Howe
-Last updated: 2025/04/21
+Last updated: 2025/05/01
 Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
     particles. Also includes fitting functionality
 '''
@@ -117,6 +117,11 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
             x[9] = vx2, 
             x[10] = y2, 
             x[11] = vy2
+
+            The equations are coded in the following way:
+
+            (x0i)' = vx0i
+            (vxi)' = sum_over_j_j_neq_i [ a(Δx_ij)exp(|r_vec_i - r_vec_j|) ( | r_vec_i - r_vec_j |^(-1) + | r_vec_i - r_vec_j |^(-3/2) ) ]
         '''
         # str var potential can be 'attractive' or 'repulsive'.
         if self.potential_type == 'attractive':
@@ -310,12 +315,13 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         # create filename using date and time
         timestr = time.strftime("%Y%m%d_%H%M%S")
         filename = f"{directoryname}/Yukawa3body_{timestr}.obj"
-        # save data to file
+        # check if filename already exists, add integer counter to filename to avoid overwrite
         counter = 0
         filename_to_check = filename
         while os.path.exists(filename_to_check):
             counter += 1
             filename_to_check = filename[:-4] + f"_{counter}.obj"
+        # save data to file
         with open(filename_to_check, 'wb') as f:
             pkl.dump(self, f)
 
@@ -330,7 +336,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
 def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
                       potential_type:str='attractive', rng:np.random.Generator=None, 
-                      save_data:bool=True):
+                      save_data:bool=True, directoryname:str=None):
     '''
     Syntax: multiple_simulate()
     Description: simulate integer number 'n_trajectories' of equal duration 'duration' with
@@ -354,9 +360,10 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
         # save data if desired
         if save_data:
             print("saving data for trajectory", i)
-            # generate directoryname
-            timestr = time.strftime("%Y%m%d")
-            directoryname = f"data/{timestr}_runs"
+            if directoryname is None:
+                # generate directoryname
+                timestr = time.strftime("%Y%m%d")
+                directoryname = f"data/{timestr}_runs"
             sim.save_data(directoryname=directoryname)
     return sim_list
 

@@ -1,7 +1,7 @@
 '''
 File:         Yukawa_SINDy.py
 Written by:   Brooks Howe
-Last updated: 2024/10/14
+Last updated: 2025/05/01
 Description:  Python script containing functions used in
               the file 'YukawaEOM_basic.ipynb'.
 '''
@@ -515,7 +515,7 @@ def plot_coef_hist(hspace,
 
 
 def plot_complexity(complexity, hparams, first, last, step):
-    ticklist = np.arange(first, last+step, step)
+    # ticklist = np.arange(first, last+step, step)
     # while len(ticklist) > 10:
     #     ticklist = ticklist[0::2] # slice list by taking every other element
         # the below does the same thing (maybe?) as the above but with more lines of code
@@ -529,6 +529,7 @@ def plot_complexity(complexity, hparams, first, last, step):
     ymax = np.max(complexity)
     plt.yticks(np.arange(0, ymax+1, 2))
     plt.plot(hparams, complexity, '.')
+    plt.show()
 
 
 def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, threshold_scan, 
