@@ -165,7 +165,8 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         '''
         Syntax: obj_instance.simulate(3)
         Description:
-            Uses scipy.integrate.solve_ivp to simulate the system of equations given by argument 'func'.
+            Uses scipy.integrate.solve_ivp to simulate the system of equations given by private 
+            method __Yukawa_3body_EOM.
         '''
         # if self.init_cond==[0, 1e-2, 0, 1e-2,   1, -1e-2, 0, 1e-2,   0, 1e-2, 1, -1e-2]:
         #     print("using default initial conditions")
