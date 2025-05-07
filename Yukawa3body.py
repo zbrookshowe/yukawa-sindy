@@ -1,7 +1,7 @@
 '''
 File:         Yukawa3body.py
 Written by:   Brooks Howe
-Last updated: 2025/05/01
+Last updated: 2025/05/07
 Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
     particles. Also includes fitting functionality
 '''
@@ -92,7 +92,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     # Class Methods
     ###############################################################################################
 
-    def Yukawa_3body_EOM(self,t, x):
+    def __Yukawa_3body_EOM(self,t, x):
         '''
         Description: 
             this is the equations of motion for a 3-body system in 2 dimensions. The particle 
@@ -161,8 +161,9 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
                 ]
     
 
-    def simulate(self, duration, dt=1e-4, func=Yukawa_3body_EOM, potential_type:str="repulsive"):
+    def simulate(self, duration, dt=1e-4, potential_type:str="repulsive"):
         '''
+        Syntax: obj_instance.simulate(3)
         Description:
             Uses scipy.integrate.solve_ivp to simulate the system of equations given by argument 'func'.
         '''
@@ -174,11 +175,8 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         t = np.arange(0,duration+dt,dt)
         t_span = (t[0], t[-1])
 
-        # input only vars t and x into the solve_ivp function call, set potential_type
-        func_to_solve = lambda t,x: func(self,t,x)
-
-        # solve initial value problem and return trajectories
-        x_clean = solve_ivp(func_to_solve, t_span, self.init_cond, t_eval=t, **integrator_keywords).y.T
+        # solve initial value problem using the Yukawa_3body_EOM function and return trajectories
+        x_clean = solve_ivp(self.__Yukawa_3body_EOM, t_span, self.init_cond, t_eval=t, **integrator_keywords).y.T
         # save parameters as attributes
         
         self.duration = duration
@@ -190,6 +188,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
     def generate_init_cond(self, std_dev=0.1, print=False):
         '''
+        Syntax: obj_instance.generate_init_cond()
         Description:
             Creates random initial conditions to use in the simulation. Note: if not run before
             method "simulate()", simulation will use default initial conditions. In the case of an 
@@ -230,8 +229,8 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
     def __calculate_vel_init_cond(self,pos_init_cond:np.ndarray):
         '''
-        Description: calculate initial velocity vectors such that all point radially inward
-        towards the origin
+        Description: Private method that calculates initial velocity vectors such that all point
+            radially inward towards the origin.
         '''
         # updated code:
         # calculate angle from the positive x-axis in radians on the int [-pi,pi]
@@ -247,6 +246,12 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
 
     def plot(self, which:str='position'):
+        '''
+        Syntax: obj_instance.plot()
+        Description:
+            Plots the trajectories of all particles in the simulation along with dots where the
+            initial positions are.
+        '''
         if which == 'position':
             loop_start = 0
         elif which == 'velocity':
@@ -275,6 +280,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
 
     def subtract_data(self):
         '''
+        Syntax: obj_instance.subtract_data()
         Description: transforms data to be in the subtracted space of positions and velocities such
         that:
         [[x0],              [[x0-x1],
@@ -285,6 +291,8 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
          [vx1],              [vx1-vx2],
          ...,                ...,
          [vy2]]              [vy2-vy0]]
+        Checks if data has already been subtracted or if no simulation has been run, raises error
+        in either of these cases.
         '''
         # check if data is already subtracted
         if self.is_subtracted:
@@ -309,6 +317,14 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
     
 
     def save_data(self, directoryname:str='data'):
+        '''
+        Syntax: obj_instance.save_data()
+        Description: create filename using date and time and save Simulation object to '.obj' file.
+            Saves to directory specified in kwarg 'directoryname', creates directory if it doesn't
+            exist, saves to 'data' by default. Uses a file naming scheme based on date and time, if
+            files would have the same name, adds integer counter to filename to avoid overwrite,
+            e.g. 'Yukawa3body_20220101_123456_1.obj'.
+        '''
         # create directory if it doesn't exist
         if not os.path.exists(directoryname):
             os.makedirs(directoryname)
@@ -402,6 +418,15 @@ def plot_multiple(sim_list:list, which:str='position'):
 
 def generate_3body_library():
     # define custom library of terms with only yukawa (rational) terms
+    """
+    Description: generates a custom library of terms with only yukawa (rational) terms
+        for 3-body simulations. The yukawa library is then combined with an identity library
+        to create a generalized library, which is used for fitting the 3-body SINDy model. This 
+        library contains only terms that are necessary to describe the equations of motion.
+
+    Returns:
+        A generalized library used for 3-body SINDy model fitting
+    """
     library_functions = [
         lambda x, y: x * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
         lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
@@ -434,6 +459,11 @@ def generate_3body_library():
     return generalized_library
 
 def print_SINDy_nice(model: ps.SINDy):
+    '''
+    Syntax: print_SINDy_nice(model)
+    Description: prints SINDy model in readable format, where each equation is printed with each 
+        term on a separate line.
+    '''
     # print header
     print(100*'-')
     print('STLSQ threshold:', model.optimizer.threshold)
