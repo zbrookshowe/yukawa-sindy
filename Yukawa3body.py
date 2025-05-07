@@ -409,10 +409,10 @@ def generate_3body_library():
         lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2)
     ]
     library_function_names = [
-        lambda x,y: x + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )",
-        lambda x,y: y + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )",
-        lambda x,y: x + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )^(3/2)",
-        lambda x,y: y + " exp( sqrt( " + x + "^2 + " + y + "^2 ) ) / ( " + x + "^2 + " + y + "^2 )^(3/2)"
+        lambda x,y: x + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)",
+        lambda x,y: y + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)",
+        lambda x,y: x + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)^(3/2)",
+        lambda x,y: y + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)^(3/2)"
     ]
     yukawa_library = ps.CustomLibrary(
         library_functions=library_functions, 
@@ -432,6 +432,28 @@ def generate_3body_library():
         inputs_per_library=inputs_per_library
     )
     return generalized_library
+
+def print_SINDy_nice(model: ps.SINDy):
+    # print header
+    print(100*'-')
+    print('STLSQ threshold:', model.optimizer.threshold)
+    print('complexity:', model.complexity)
+    print(100*'-')
+    # get equations and feature names from model object
+    eqns = model.equations()
+    feature_names = model.feature_names
+    # print equations formatted nicely
+    for i, eqn in enumerate(eqns):
+        terms = eqn.split(' + ')
+        padding = (11 - len(feature_names[i]))*' '
+        print('(' + feature_names[i] + ')\'' + padding + '= ' + terms[0])
+        if len(terms) > 1:
+            for term in terms[1:]:
+                print(14*' ' + '+ ' + term)
+        print()
+        if (i+1) % 4 == 0:
+            print(100*'-')
+
 
 def main():
     rng = np.random.default_rng(seed=346734)
@@ -457,7 +479,8 @@ def main():
                      feature_library=generalized_library
                      )
     model.fit(x_train_subtracted, t=dt, multiple_trajectories=True)
-    model.print()
+    # model.print()
+    print_SINDy_nice(model)
 
 if __name__ == "__main__":
     print("running main function")
