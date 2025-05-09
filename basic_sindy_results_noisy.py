@@ -10,28 +10,46 @@ import Yukawa3body as y3
 import numpy as np
 import pysindy as ps
 
-# define relative path to data directory
-data_dir = 'data/basic_noisy'
+# define relative path to data directory where data is or will be stored
+data_dir = 'data/basic_noisy/analysis_trajectories'
+
+# set whether to generate and save data
+generate_data = False
+save_data = True # only relevant if generate_data is True
+
+# set simulation parameters used if generating data, not relevant if using saved data
+n_trajectories = 200
+sim_duration = 1e-1
+potential_type = 'repulsive'
+dt=1e-4
+
 # define noise levels
 noise_levels = [1e-3, 5e-3, 1e-2]
 # define threshold values to use with SINDy
 threshold_array:np.ndarray = np.arange(0.0, 0.9, 0.1)
 
-# loop through noise levels
-for noise_level in noise_levels:
-    # create directory name for this specific noise level
-    data_dir_noise_level = data_dir + '/noise_level_' + str(noise_level)
+if generate_data:
     # create list of sim objects with different noise levels
     seed_num = 109274
     rng = np.random.default_rng(seed=seed_num)
-    sim_list = y3.multiple_simulate(duration=1e-1, n_trajectories=200, potential_type='repulsive', rng=rng, 
-                                    save_data=True, directoryname=data_dir_noise_level)
+    sim_list = y3.multiple_simulate(duration=sim_duration, dt=dt, n_trajectories=n_trajectories, 
+                                    potential_type=potential_type,rng=rng, save_data=save_data, 
+                                    directoryname=data_dir
+                                    )
+else:
+    # load saved data
+    sim_list = y3.load_data(data_dir)
 
+# loop through noise levels
+for noise_level in noise_levels:
     # transform to subtracted space and add noise to each simulation in sim_list
     x_train = []
     for sim in sim_list:
+        if sim.is_noisy:
+            sim.delete_noise()
+        if not sim.is_subtracted:
+            sim.subtract_data()
         # subtract data and add noise
-        sim.subtract_data()
         sim.add_gaussian_noise(noise_level=noise_level) # just use one noise level for now
         # collect data into list x_train for SINDy fitting
         x_train.append(sim.x)
