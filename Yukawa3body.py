@@ -316,6 +316,16 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
         self.is_subtracted = True
         return self
     
+    def unsubtract_data(self):
+        # restore original data if already subtracted, raise error if data not subtracted
+        if self.is_subtracted:
+            self.x = self.x_unsubtracted
+            self.x_unsubtracted = None
+            self.is_subtracted = False
+        else:
+            raise Exception("data has not been transformed to be subtracted")
+        return self
+    
 
     def save_data(self, directoryname:str='data'):
         '''
@@ -382,6 +392,20 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
                 timestr = time.strftime("%Y%m%d")
                 directoryname = f"data/{timestr}_runs"
             sim.save_data(directoryname=directoryname)
+    return sim_list
+
+
+def load_data(directory_of_pkls_only:str):
+    '''
+    Description: loads data from .obj files in directory given by relative path (project working
+        directory is 'C:\Users\zacha\Box\Graduate School\Research\Code') in kwarg 
+        'directory_of_pkls_only' and returns as a list of Yukawa3body objects.
+    '''
+    sim_list = []
+    for filename in os.listdir(directory_of_pkls_only):
+        with open(f"{directory_of_pkls_only}/{filename}", 'rb') as f:
+            sim = pkl.load(f)
+            sim_list.append(sim)
     return sim_list
 
 
