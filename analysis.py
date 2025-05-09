@@ -21,6 +21,7 @@ def check_if_subtracted(sim_list:list):
 
     if some_not_subtracted:
         print("Warning: not all data is subtracted")
+    return some_not_subtracted
 
 def check_if_noisy(sim_list:list):
     some_not_noisy = False
