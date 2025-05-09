@@ -396,11 +396,10 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
 
 
 def load_data(directory_of_pkls_only:str):
-    '''
-    Description: loads data from .obj files in directory given by relative path (project working
-        directory is 'C:\Users\zacha\Box\Graduate School\Research\Code') in kwarg 
-        'directory_of_pkls_only' and returns as a list of Yukawa3body objects.
-    '''
+    # '''Description: loads data from .obj files in directory given by relative path (project working
+    #     directory is 'C:\Users\zacha\Box\Graduate School\Research\Code') in kwarg 
+    #     'directory_of_pkls_only' and returns as a list of Yukawa3body objects.
+    # '''
     sim_list = []
     for filename in os.listdir(directory_of_pkls_only):
         with open(f"{directory_of_pkls_only}/{filename}", 'rb') as f:
@@ -521,7 +520,7 @@ def generate_3body_library_codified():
     )
     return generalized_library
 
-def print_SINDy_nice(model: ps.SINDy):
+def print_SINDy_nice(model: ps.SINDy, noise=None, save=False):
     '''
     Syntax: print_SINDy_nice(model)
     Description: prints SINDy model in readable format, where each equation is printed with each 
@@ -546,36 +545,71 @@ def print_SINDy_nice(model: ps.SINDy):
         print()
         if (i+1) % 4 == 0:
             print(100*'-')
+    
+    if save:
+        with open('SINDy_model.txt', 'w') as f:
+            f.write(model.equations())
+
+
+def SINDy_results_nice(model: ps.SINDy, sim_list: list, datadirectory: str='data/basic_noisy'):
+    n_trajectories = len(sim_list)
+    noise_level = sim_list[0].noise_level
+    # save eqns, feature_names, noise_level, n_trajectories, complexity
+    output = []
+    # Header
+    output.append(100*'=')
+    output.append('noise level: ' + str(noise_level))
+    output.append('number of trajectories: '+ str(n_trajectories))
+    output.append('STLSQ threshold: '+ str(model.optimizer.threshold))
+    output.append('complexity: ' + str(model.complexity))
+    output.append(100*'=')
+    for i, eqn in enumerate(model.equations()):
+        terms = eqn.split(' + ')
+        padding = (11 - len(model.feature_names[i]))*' '
+        output.append('(' + model.feature_names[i] + ')\'' + padding + '= ' + terms[0])
+        if len(terms) > 1:
+            for term in terms[1:]:
+                output.append(14*' ' + '+ ' + term)
+        output.append('')
+        if (i+1) % 4 == 0:
+            output.append('\n' + 100*'-')
+
+    return output
+    
 
 
 def main():
     rng = np.random.default_rng(seed=346734)
-    sim_list = multiple_simulate(duration=1e-1,n_trajectories=200,potential_type='repulsive',
+    sim_list = multiple_simulate(duration=1e-1,n_trajectories=10,potential_type='repulsive',
                                   rng=rng, save_data=False, directoryname='data/basic_noisy'
                                   )
     # plot_multiple(sim_list=sim_list)
     generalized_library = generate_3body_library()
-    opt = ps.STLSQ(threshold=0.66)
+    opt = ps.STLSQ(threshold=0.4)
     # loop through sim_list to transform data and build list x_train_subtracted and extract out 
     # labels
-    use_noisy = 'y' #input("use noisy data? (y/n) ")
+    use_noisy = 'n' #input("use noisy data? (y/n) ")
     if use_noisy == 'y':
-        noise_level = float(input("noise level: "))
+        noise_level = 1e-3 # float(input("noise level: "))
     x_train_subtracted = []
-    for sim in sim_list:
+    for i, sim in enumerate(sim_list):
         sim.subtract_data()
         if use_noisy == 'y':
             sim.add_gaussian_noise(noise_level=noise_level)
         x_train_subtracted.append(sim.x)
-    x_train_labels = sim.labels
-    dt = sim.dt
+        sim_list[i] = sim # modify list element in place
+    x_train_labels = sim.labels # extract labels from last sim in loop
+    dt = sim.dt # extract dt from last sim in loop
+
     # fit a SINDy model
     model = ps.SINDy(optimizer=opt, feature_names=x_train_labels, 
                      feature_library=generalized_library
                      )
     model.fit(x_train_subtracted, t=dt, multiple_trajectories=True)
     # model.print()
-    print_SINDy_nice(model)
+    result = SINDy_results_nice(model, sim_list=sim_list)
+    for line in result:
+        print(line)
     # for term in model.get_feature_names():
     #     print(term)
 
