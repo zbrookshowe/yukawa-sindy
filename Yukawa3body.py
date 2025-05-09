@@ -1,7 +1,7 @@
 '''
 File:         Yukawa3body.py
 Written by:   Brooks Howe
-Last updated: 2025/05/07
+Last updated: 2025/05/08
 Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
     particles. Also includes fitting functionality
 '''
@@ -429,19 +429,57 @@ def generate_3body_library():
         A generalized library used for 3-body SINDy model fitting
     """
     library_functions = [
-        lambda x, y: x * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
-        lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
-        lambda x, y: x * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2),
-        lambda x, y: y * np.exp( np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2)
+        lambda x, y: x * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
+        lambda x, y: y * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ),
+        lambda x, y: x * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2),
+        lambda x, y: y * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2)
     ]
     library_function_names = [
-        lambda x,y: x + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)",
-        lambda x,y: y + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)",
-        lambda x,y: x + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)^(3/2)",
-        lambda x,y: y + " exp( sqrt(" + x + "^2+" + y + "^2) ) / (" + x + "^2+" + y + "^2)^(3/2)"
+        lambda x,y: "(" + x + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)",
+        lambda x,y: "(" + y + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)",
+        lambda x,y: "(" + x + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)^(3/2)",
+        lambda x,y: "(" + y + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)^(3/2)"
     ]
     yukawa_library = ps.CustomLibrary(
         library_functions=library_functions, 
+        function_names=library_function_names
+    )
+
+    # create identity library for the definition terms x' = v, etc.
+    identity_library = ps.IdentityLibrary()
+
+    # input only velocities to first library and only positions to other three libraries
+    num_features:int = 12 # x_train.shape[1] # need to change this later to be general
+    pos_idxs = [i for i in range(0,num_features,2)]
+    vel_idxs = [i+1 for i in range(0,num_features,2)]
+    inputs_per_library = np.array([vel_idxs,pos_idxs[0:2]*3,pos_idxs[2:4]*3,pos_idxs[4:6]*3])
+    generalized_library = ps.GeneralizedLibrary(
+        [identity_library] + 3*[yukawa_library],
+        inputs_per_library=inputs_per_library
+    )
+    return generalized_library
+
+def generate_3body_library_codified():
+    # define custom library of terms with only yukawa (rational) terms
+    """
+    Description: generates a custom library of terms with only yukawa (rational) terms
+        for 3-body simulations, grouping terms by cartesian index. The yukawa library is then
+        combined with an identity library to create a generalized library, which is used for 
+        fitting the 3-body SINDy model. This library contains only terms that are necessary to describe the equations of motion.
+
+    Returns:
+        A generalized library used for 3-body SINDy model fitting
+    """
+    library_functions = [
+        lambda x, y: x * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ) + x * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2),
+        lambda x, y: y * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 ) + y * np.exp( -np.sqrt( x**2 + y**2 ) ) / ( x**2 + y**2 )**(3/2)
+    ]
+    library_function_names = [
+        lambda x,y: x + "w(" + x + ", " + y + ")",
+        lambda x,y: y + "w(" + x + ", " + y + ")"
+    ]
+    yukawa_library = ps.CustomLibrary(
+        library_functions=library_functions,
         function_names=library_function_names
     )
 
@@ -488,13 +526,15 @@ def print_SINDy_nice(model: ps.SINDy):
 
 def main():
     rng = np.random.default_rng(seed=346734)
-    sim_list = multiple_simulate(duration=1e-1,potential_type='repulsive', rng=rng, save_data=False)
+    sim_list = multiple_simulate(duration=1e-1,n_trajectories=200,potential_type='repulsive',
+                                  rng=rng, save_data=False, directoryname='data/basic_noisy'
+                                  )
     # plot_multiple(sim_list=sim_list)
     generalized_library = generate_3body_library()
-    opt = ps.STLSQ(threshold=0.5)
+    opt = ps.STLSQ(threshold=0.66)
     # loop through sim_list to transform data and build list x_train_subtracted and extract out 
     # labels
-    use_noisy = input("use noisy data? (y/n) ")
+    use_noisy = 'y' #input("use noisy data? (y/n) ")
     if use_noisy == 'y':
         noise_level = float(input("noise level: "))
     x_train_subtracted = []
@@ -512,6 +552,8 @@ def main():
     model.fit(x_train_subtracted, t=dt, multiple_trajectories=True)
     # model.print()
     print_SINDy_nice(model)
+    # for term in model.get_feature_names():
+    #     print(term)
 
 if __name__ == "__main__":
     print("running main function")
