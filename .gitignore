@@ -1,6 +1,9 @@
 # ignore data directory
 data/
 
+# ignore "journal" file
+3body_noise_analysis.ipynb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
