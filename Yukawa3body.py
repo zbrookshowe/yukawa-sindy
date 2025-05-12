@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pysindy as ps
 
 import pickle as pkl
+import dill
 import time
 import os
 
@@ -396,7 +397,8 @@ def multiple_simulate(duration=3e-1, dt=1e-4, n_trajectories:int=10,
 
 
 def load_data(directory_of_pkls_only:str):
-    # '''Description: loads data from .obj files in directory given by relative path (project working
+    # '''
+    # Description: loads data from .obj files in directory given by relative path (project working
     #     directory is 'C:\Users\zacha\Box\Graduate School\Research\Code') in kwarg 
     #     'directory_of_pkls_only' and returns as a list of Yukawa3body objects.
     # '''
@@ -408,7 +410,7 @@ def load_data(directory_of_pkls_only:str):
     return sim_list
 
 
-def plot_multiple(sim_list:list, which:str='position'):
+def plot_multiple(sim_list:list, which:str='position', figsize = (12,12)):
     '''
     Description: plots first 9 trajectories of x
     Inputs:
@@ -424,7 +426,7 @@ def plot_multiple(sim_list:list, which:str='position'):
     else:
         raise ValueError("kwarg which which must be either 'position' or 'velocity'")
     # plot first 9 trajectories of x
-    fig, axs = plt.subplots(3,3, figsize=(20,20))
+    fig, axs = plt.subplots(3,3, sharex=True, sharey=True, figsize=figsize)
     colors = ['C0','C1','C2']
     axs.resize((9,))
     for i in range(9):
@@ -520,7 +522,7 @@ def generate_3body_library_codified():
     )
     return generalized_library
 
-def print_SINDy_nice(model: ps.SINDy, noise=None, save=False):
+def print_SINDy_nice_OLD(model: ps.SINDy, noise=None, save=False):
     '''
     Syntax: print_SINDy_nice(model)
     Description: prints SINDy model in readable format, where each equation is printed with each 
@@ -550,8 +552,17 @@ def print_SINDy_nice(model: ps.SINDy, noise=None, save=False):
         with open('SINDy_model.txt', 'w') as f:
             f.write(model.equations())
 
+def print_SINDy_nice(model: ps.SINDy, noise=None, save=False):
+    '''
+    Syntax: print_SINDy_nice(model)
+    Description: prints SINDy model in readable format, where each equation is printed with each 
+        term on a separate line.
+    '''
+    output = SINDy_results_nice(model=model, sim_list=noise)
+    print('\n'.join(output))
 
-def SINDy_results_nice(model: ps.SINDy, sim_list: list, datadirectory: str='data/basic_noisy'):
+
+def SINDy_results_nice(model: ps.SINDy, sim_list: list):
     n_trajectories = len(sim_list)
     noise_level = sim_list[0].noise_level
     # save eqns, feature_names, noise_level, n_trajectories, complexity
@@ -563,6 +574,7 @@ def SINDy_results_nice(model: ps.SINDy, sim_list: list, datadirectory: str='data
     output.append('STLSQ threshold: '+ str(model.optimizer.threshold))
     output.append('complexity: ' + str(model.complexity))
     output.append(100*'=')
+    # SINDy model
     for i, eqn in enumerate(model.equations()):
         terms = eqn.split(' + ')
         padding = (11 - len(model.feature_names[i]))*' '
@@ -575,26 +587,74 @@ def SINDy_results_nice(model: ps.SINDy, sim_list: list, datadirectory: str='data
             output.append('\n' + 100*'-')
 
     return output
+
+def save_SINDy_model(model:ps.SINDy, sim_list: list,
+                     directoryname: str='data/basic_noisy/SINDy_results'
+                     ):
+    '''
+    Description: saves SINDy model as human readable .txt files and as .obj files for future use.
+        Creates directory for specific noise level ), saves .txt files with SINDy
+        model there. Creates a subdirectory for .obj files (if it doesn't exist), saves .obj files
+        there.
+    '''
+    # extract noise level and threshold from inputs, convert to strings of uniform format
+    noise_level = sim_list[0].noise_level
+    threshold = model.optimizer.threshold
+    noise_rounded = np.format_float_positional(noise_level, unique=False, precision=5)
+    threshold_rounded = np.format_float_positional(threshold, unique=False, precision= 3)
+
+    # create directory for models with a specific noise level if it doesn't exist
+    noise_directoryname = directoryname + '/noise_' + noise_rounded
+    if not os.path.exists(noise_directoryname):
+        os.makedirs(noise_directoryname)
+
+    # save .txt file
+    filename = f'threshold_{threshold_rounded}_results.txt'
+    filepath = noise_directoryname + '/' + filename
+    with open(filepath, 'w') as f:
+        f.writelines(line + '\n' for line in SINDy_results_nice(model, sim_list))
+
+    # create directory for .obj files specifically if it doesn't exist
+    obj_directoryname = noise_directoryname + '/model_objs'
+    if not os.path.exists(obj_directoryname):
+        os.makedirs(obj_directoryname)
     
+    # save .obj file in subdirectory of noise level directory
+    filename = f'threshold_{threshold_rounded}.obj'
+    filepath = obj_directoryname + '/' + filename
+    with open(filepath, 'wb') as f:
+        dill.dump(model, f)
+
+
+def load_SINDy_models(directory_of_dillpkls_only:str):
+    model_list = []
+    for filename in os.listdir(directory_of_dillpkls_only):
+        with open(f"{directory_of_dillpkls_only}/{filename}", 'rb') as f:
+            model = dill.load(f)
+            model_list.append(model)
+    return model_list
 
 
 def main():
+    # initialize variables
+    noise_level = 0
+    potential_type = 'repulsive'
+    save_data = False
+    directoryname = 'data/basic_noisy'
+    # define rng for reproducibility
     rng = np.random.default_rng(seed=346734)
-    sim_list = multiple_simulate(duration=1e-1,n_trajectories=10,potential_type='repulsive',
-                                  rng=rng, save_data=False, directoryname='data/basic_noisy'
+    sim_list = multiple_simulate(duration=1e-1,n_trajectories=10,potential_type=potential_type,
+                                  rng=rng, save_data=save_data, directoryname=directoryname
                                   )
     # plot_multiple(sim_list=sim_list)
     generalized_library = generate_3body_library()
     opt = ps.STLSQ(threshold=0.4)
     # loop through sim_list to transform data and build list x_train_subtracted and extract out 
     # labels
-    use_noisy = 'n' #input("use noisy data? (y/n) ")
-    if use_noisy == 'y':
-        noise_level = 1e-3 # float(input("noise level: "))
     x_train_subtracted = []
     for i, sim in enumerate(sim_list):
         sim.subtract_data()
-        if use_noisy == 'y':
+        if noise_level != 0:
             sim.add_gaussian_noise(noise_level=noise_level)
         x_train_subtracted.append(sim.x)
         sim_list[i] = sim # modify list element in place
@@ -610,6 +670,13 @@ def main():
     result = SINDy_results_nice(model, sim_list=sim_list)
     for line in result:
         print(line)
+
+    model_filename = f'model_noise_{noise_level}.txt'
+    model_directory = 'SINDy_results'
+    model_path = directoryname + '/' + model_directory + '/' + model_filename
+
+    with open(model_path, 'wb') as f:
+        f.writelines(result)
     # for term in model.get_feature_names():
     #     print(term)
 
