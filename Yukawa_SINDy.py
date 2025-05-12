@@ -531,6 +531,22 @@ def plot_complexity(complexity, hparams, first, last, step):
     plt.plot(hparams, complexity, '.')
     plt.show()
 
+def plot_complexity_objs(model_list: list, figsize=(8,6)):
+    '''
+    Description: Updated version of plot_complexity() which takes in list of ps.SINDy() objects and
+        plots complexity vs. threshold
+    '''
+    # extract hparams and complexity from each model
+    thresholds = np.array([model.optimizer.threshold for model in model_list])
+    complexities = np.array([model.complexity for model in model_list])
+    # plot complexity vs. thresholds
+    fig, axs = plt.subplots(1,1, figsize=figsize)
+    axs.plot(thresholds, complexities, '.')
+    axs.set_xlabel('Threshold')
+    axs.set_ylabel('Complexity')
+    fig.tight_layout()
+    fig.show()
+
 
 def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, threshold_scan, 
                 plot_prediction: bool = False):
