@@ -25,7 +25,7 @@ potential_type = 'repulsive'
 dt=1e-4
 
 # define noise levels
-noise_levels = [0] # np.arange(0, 1.2e-4, 2e-5)
+noise_levels = [1e-5, 3e-5, 4e-5] # np.arange(0, 1.2e-4, 2e-5)
 # define threshold values to use with SINDy
 threshold_array = np.arange(0.0, 1.0, 0.01)
 
@@ -64,6 +64,7 @@ for noise_level in noise_levels:
     dt = sim.dt
     # fit a SINDy model using different thresholds
     for threshold in threshold_array:
+        print("fitting model with noise level", noise_level, "and threshold", threshold)
         opt = ps.STLSQ(threshold=threshold)
         model = ps.SINDy(optimizer=opt, feature_names=x_train_labels, feature_library=lib)
         model.fit(x_train, t=dt, multiple_trajectories=True)
