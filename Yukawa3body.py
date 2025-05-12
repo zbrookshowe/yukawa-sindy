@@ -1,12 +1,13 @@
 '''
 File:         Yukawa3body.py
 Written by:   Brooks Howe
-Last updated: 2025/05/08
+Last updated: 2025/05/12
 Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
     particles. Also includes fitting functionality
 '''
 import numpy as np
 import matplotlib.pyplot as plt
+# plt.rcParams.update({'font.size': 6})
 import pysindy as ps
 
 import pickle as pkl
@@ -410,7 +411,7 @@ def load_data(directory_of_pkls_only:str):
     return sim_list
 
 
-def plot_multiple(sim_list:list, which:str='position', figsize = (12,12)):
+def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsize:int=12):
     '''
     Description: plots first 9 trajectories of x
     Inputs:
@@ -426,11 +427,15 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12)):
     else:
         raise ValueError("kwarg which which must be either 'position' or 'velocity'")
     # plot first 9 trajectories of x
+    plt.rcParams['font.size'] = str(fontsize)
     fig, axs = plt.subplots(3,3, sharex=True, sharey=True, figsize=figsize)
     colors = ['C0','C1','C2']
     axs.resize((9,))
     for i in range(9):
         for j in range( loop_start, sim_list[0].x.shape[1], 4 ):
+            box=[-0.4,0.4]
+            axs[i].set_xlim(box)
+            axs[i].set_ylim(box)
             label = f"particle {j//4}"
             # plot particle trajectories
             axs[i].plot(sim_list[i].x[:,j], sim_list[i].x[:,j+2], colors[j//4], label=label)
@@ -438,7 +443,7 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12)):
             axs[i].plot(sim_list[i].init_cond[j],sim_list[i].init_cond[j+2], colors[j//4] + 'o')#, label=label + " start")
             # plot arrows for ptcl init velocity
             # axs[i].arrow(sim_list[i].init_cond[j],sim_list[i].init_cond[j+2],5e-2*sim_list[i].init_cond[j+1],5e-2*sim_list[i].init_cond[j+3], color=colors[j//4], width=0.0005)#, label=label + " init. vel.")
-        axs[i].legend()
+    axs[0].legend(loc='upper left',prop={'size': fontsize})
     fig.tight_layout()
     plt.show()
 
@@ -552,13 +557,13 @@ def print_SINDy_nice_OLD(model: ps.SINDy, noise=None, save=False):
         with open('SINDy_model.txt', 'w') as f:
             f.write(model.equations())
 
-def print_SINDy_nice(model: ps.SINDy, noise=None, save=False):
+def print_SINDy_nice(model: ps.SINDy, sim_list: list):
     '''
     Syntax: print_SINDy_nice(model)
     Description: prints SINDy model in readable format, where each equation is printed with each 
         term on a separate line.
     '''
-    output = SINDy_results_nice(model=model, sim_list=noise)
+    output = SINDy_results_nice(model=model, sim_list=sim_list)
     print('\n'.join(output))
 
 
