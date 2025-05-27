@@ -25,9 +25,9 @@ potential_type = 'repulsive'
 dt=1e-4
 
 # define noise levels
-noise_levels = [1e-5, 3e-5, 4e-5] # np.arange(0, 1.2e-4, 2e-5)
+noise_levels = [5e-4] # np.arange(0, 1.2e-4, 2e-5)
 # define threshold values to use with SINDy
-threshold_array = np.arange(0.0, 1.0, 0.01)
+threshold_array = np.arange(1.0, 5.0, 0.1)
 
 if generate_data:
     # create list of sim objects with different noise levels
