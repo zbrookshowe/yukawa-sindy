@@ -682,8 +682,8 @@ def main():
 
     with open(model_path, 'wb') as f:
         f.writelines(result)
-    # for term in model.get_feature_names():
-    #     print(term)
+    for term in model.get_feature_names():
+        print(term)
 
 if __name__ == "__main__":
     print("running main function")
