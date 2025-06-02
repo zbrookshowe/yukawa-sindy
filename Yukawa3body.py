@@ -1,9 +1,9 @@
 '''
 File:         Yukawa3body.py
 Written by:   Brooks Howe
-Last updated: 2025/05/12
+Last updated: 2025/06/02
 Description:  Python program which has a class for simulating the 3-body Yukawa system of point 
-    particles. Also includes fitting functionality
+    particles. Also includes fitting and plotting functionality
 '''
 import numpy as np
 import matplotlib.pyplot as plt
@@ -447,13 +447,15 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsi
     fig.tight_layout()
     plt.show()
 
-def generate_3body_library():
+def generate_3body_library(use_weak:bool=False, spatiotemporal_grid=None):
     # define custom library of terms with only yukawa (rational) terms
     """
     Description: generates a custom library of terms with only yukawa (rational) terms
         for 3-body simulations. The yukawa library is then combined with an identity library
         to create a generalized library, which is used for fitting the 3-body SINDy model. This 
-        library contains only terms that are necessary to describe the equations of motion.
+        library contains only terms that are necessary to describe the equations of motion. Uses
+        weak form if kwarg 'use_weak' is True, uses strong form by default. Note: var 
+        'spatiotemporal_grid' must be provided if 'use_weak' is True.
 
     Returns:
         A generalized library used for 3-body SINDy model fitting
@@ -470,13 +472,29 @@ def generate_3body_library():
         lambda x,y: "(" + x + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)^(3/2)",
         lambda x,y: "(" + y + ") exp( -sqrt((" + x + ")^2+(" + y + ")^2) ) / ((" + x + ")^2+(" + y + ")^2)^(3/2)"
     ]
-    yukawa_library = ps.CustomLibrary(
-        library_functions=library_functions, 
-        function_names=library_function_names
-    )
 
-    # create identity library for the definition terms x' = v, etc.
-    identity_library = ps.IdentityLibrary()
+    # generate custom library using weak formulation if desired, else use regular custom and identity libraries (strong form)
+    if use_weak:
+        if spatiotemporal_grid is None:
+            raise ValueError("spatiotemporal_grid must be provided if using weak form")
+        yukawa_library = ps.WeakPDELibrary(
+            library_functions=library_functions, 
+            function_names=library_function_names,
+            spatiotemporal_grid=spatiotemporal_grid,
+            is_uniform=True
+        )
+
+        identity_library = ps.WeakPDELibrary(
+            library_functions=[lambda x: x]
+        )
+    else:
+        yukawa_library = ps.CustomLibrary(
+            library_functions=library_functions, 
+            function_names=library_function_names
+        )
+
+        # create identity library for the definition terms x' = v, etc.
+        identity_library = ps.IdentityLibrary()
 
     # input only velocities to first library and only positions to other three libraries
     num_features:int = 12 # x_train.shape[1] # need to change this later to be general
@@ -495,7 +513,9 @@ def generate_3body_library_codified():
     Description: generates a custom library of terms with only yukawa (rational) terms
         for 3-body simulations, grouping terms by cartesian index. The yukawa library is then
         combined with an identity library to create a generalized library, which is used for 
-        fitting the 3-body SINDy model. This library contains only terms that are necessary to describe the equations of motion.
+        fitting the 3-body SINDy model. This library combines the terms used in the above func
+        'generate_3body_library' so that there are less terms in the library. Created for testing
+        purposes.
 
     Returns:
         A generalized library used for 3-body SINDy model fitting
