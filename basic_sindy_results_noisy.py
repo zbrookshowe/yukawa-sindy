@@ -1,18 +1,25 @@
 '''
 File:         basic_sindy_results_noisy.py
 Written by:   Brooks Howe
-Last updated: 2025/05/08
+Last updated: 2025/06/02
 Description:  Python script which generates results using the SINDy algorithm for the 3-body Yukawa
-    system of point particles with different noise levels added.
+    system of point particles with different noise levels added. Also can use weak formulation if 
+    use_weak=True.
 '''
 import Yukawa_SINDy as ys
 import Yukawa3body as y3
 import numpy as np
 import pysindy as ps
 
+# use weak or strong formulation
+use_weak = True
+
 # define relative path to data directory where data is or will be stored
 data_dir = 'data/basic_noisy/analysis_trajectories'
-SINDy_dir = 'data/basic_noisy/SINDy_results'
+if use_weak:
+    SINDy_dir = 'data/weak_noisy/SINDy_results'
+else:
+    SINDy_dir = 'data/basic_noisy/SINDy_results'
 
 # set whether to generate and save data
 generate_data = False
@@ -27,7 +34,7 @@ dt=1e-4
 # define noise levels
 noise_levels = [5e-4] # np.arange(0, 1.2e-4, 2e-5)
 # define threshold values to use with SINDy
-threshold_array = np.arange(1.0, 5.0, 0.1)
+threshold_array = np.arange(0.0, 1.0, 0.05)
 
 if generate_data:
     # create list of sim objects with different noise levels
@@ -42,7 +49,7 @@ else:
     sim_list = y3.load_data(data_dir)
 
 # generate SINDy library
-lib = y3.generate_3body_library()
+lib = y3.generate_3body_library(use_weak=use_weak, spatiotemporal_grid=sim_list[0].t)
 # loop through noise levels
 for noise_level in noise_levels:
     # transform to subtracted space and add noise to each simulation in sim_list
