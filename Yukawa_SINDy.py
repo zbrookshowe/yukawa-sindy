@@ -1,7 +1,7 @@
 '''
 File:         Yukawa_SINDy.py
 Written by:   Brooks Howe
-Last updated: 2025/05/01
+Last updated: 2025/06/02
 Description:  Python script containing functions used in
               the file 'YukawaEOM_basic.ipynb'.
 '''
@@ -531,7 +531,7 @@ def plot_complexity(complexity, hparams, first, last, step):
     plt.plot(hparams, complexity, '.')
     plt.show()
 
-def plot_complexity_objs(model_list: list, figsize=(8,6)):
+def plot_complexity_objs(model_list: list, figsize=(8,6), num_terms_simulation=42):
     '''
     Description: Updated version of plot_complexity() which takes in list of ps.SINDy() objects and
         plots complexity vs. threshold
@@ -540,12 +540,15 @@ def plot_complexity_objs(model_list: list, figsize=(8,6)):
     thresholds = np.array([model.optimizer.threshold for model in model_list])
     complexities = np.array([model.complexity for model in model_list])
     # plot complexity vs. thresholds
-    fig, axs = plt.subplots(1,1, figsize=figsize)
-    axs.plot(thresholds, complexities, '.')
-    axs.set_xlabel('Threshold')
-    axs.set_ylabel('Complexity')
+    fig, ax = plt.subplots(1,1, figsize=figsize)
+    ax.plot(thresholds, complexities, 'o')
+    ax.set_xlabel('Threshold')
+    ax.set_ylabel('Number of terms')
+    ax.hlines(num_terms_simulation, 0, np.max(thresholds), colors='k',
+              linestyles='dashed', lw=1.5, label="Simulation Equations")
+    ax.legend()
     fig.tight_layout()
-    fig.show()
+    return fig, ax
 
 
 def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, threshold_scan, 
