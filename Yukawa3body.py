@@ -447,7 +447,7 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsi
     fig.tight_layout()
     plt.show()
 
-def generate_3body_library(use_weak:bool=False, spatiotemporal_grid=None):
+def generate_3body_library(use_weak:bool=False, spatiotemporal_grid=None, K=100):
     # define custom library of terms with only yukawa (rational) terms
     """
     Description: generates a custom library of terms with only yukawa (rational) terms
@@ -481,11 +481,15 @@ def generate_3body_library(use_weak:bool=False, spatiotemporal_grid=None):
             library_functions=library_functions, 
             function_names=library_function_names,
             spatiotemporal_grid=spatiotemporal_grid,
-            is_uniform=True
-        )
+            is_uniform=True,
+            K=K        )
 
         identity_library = ps.WeakPDELibrary(
-            library_functions=[lambda x: x]
+            library_functions=[lambda x: x],
+            function_names=[lambda x: x],
+            spatiotemporal_grid=spatiotemporal_grid,
+            is_uniform=True,
+            K=K
         )
     else:
         yukawa_library = ps.CustomLibrary(

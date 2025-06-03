@@ -13,13 +13,11 @@ import pysindy as ps
 
 # use weak or strong formulation
 use_weak = True
+K=500 # set K for weak form
 
 # define relative path to data directory where data is or will be stored
 data_dir = 'data/basic_noisy/analysis_trajectories'
-if use_weak:
-    SINDy_dir = 'data/weak_noisy/SINDy_results'
-else:
-    SINDy_dir = 'data/basic_noisy/SINDy_results'
+SINDy_dir = 'data/weak_noisy/K_test/SINDy_results'
 
 # set whether to generate and save data
 generate_data = False
@@ -32,9 +30,9 @@ potential_type = 'repulsive'
 dt=1e-4
 
 # define noise levels
-noise_levels = [5e-4] # np.arange(0, 1.2e-4, 2e-5)
+noise_levels = [0] # np.arange(0, 1.2e-4, 2e-5)
 # define threshold values to use with SINDy
-threshold_array = np.arange(0.0, 1.0, 0.05)
+threshold_array = [0.30,0.35] # np.arange(0.0, 1.0, 0.05)
 
 if generate_data:
     # create list of sim objects with different noise levels
@@ -42,14 +40,13 @@ if generate_data:
     rng = np.random.default_rng(seed=seed_num)
     sim_list = y3.multiple_simulate(duration=sim_duration, dt=dt, n_trajectories=n_trajectories, 
                                     potential_type=potential_type,rng=rng, save_data=save_data, 
-                                    directoryname=data_dir
-                                    )
+                                    directoryname=data_dir)
 else:
     # load saved data
     sim_list = y3.load_data(data_dir)
 
 # generate SINDy library
-lib = y3.generate_3body_library(use_weak=use_weak, spatiotemporal_grid=sim_list[0].t)
+lib = y3.generate_3body_library(use_weak=use_weak, spatiotemporal_grid=sim_list[0].t, K=K)
 # loop through noise levels
 for noise_level in noise_levels:
     # transform to subtracted space and add noise to each simulation in sim_list
@@ -68,13 +65,16 @@ for noise_level in noise_levels:
 
     # extract labels and time step from last simulation in sim_list
     x_train_labels = sim.labels
-    dt = sim.dt
+    t = sim.t
     # fit a SINDy model using different thresholds
     for threshold in threshold_array:
         print("fitting model with noise level", noise_level, "and threshold", threshold)
         opt = ps.STLSQ(threshold=threshold)
         model = ps.SINDy(optimizer=opt, feature_names=x_train_labels, feature_library=lib)
-        model.fit(x_train, t=dt, multiple_trajectories=True)
+        if use_weak:
+            model.fit(x_train, multiple_trajectories=True)
+        else:
+            model.fit(x_train, t=t, multiple_trajectories=True)
         # print('STLSQ threshold:', threshold)
         # print('Std. dev. of noise:', noise_levels[0])
         # print('complexity:', model.complexity)
