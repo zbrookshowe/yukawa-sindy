@@ -411,7 +411,7 @@ def load_data(directory_of_pkls_only:str):
     return sim_list
 
 
-def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsize:int=12):
+def plot_multiple(sim_list:list, num_plots:int=9, which:str='position', fontsize:int=12):
     '''
     Description: plots first 9 trajectories of x
     Inputs:
@@ -426,12 +426,21 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsi
         loop_start = 1
     else:
         raise ValueError("kwarg which which must be either 'position' or 'velocity'")
-    # plot first 9 trajectories of x
+    
+    # check if sim_list is a list of Yukawa3body objects
+    # not working on saved data for some reason
+    # if not all(isinstance(sim, Yukawa3body) for sim in sim_list):
+    #     raise TypeError("sim_list must be a list of Yukawa3body objects")
+    
+    # plot first 'num_plots' trajectories of x
     plt.rcParams['font.size'] = str(fontsize)
-    fig, axs = plt.subplots(3,3, sharex=True, sharey=True, figsize=figsize)
+    num_columns = 3
+    num_rows = int(np.ceil(num_plots/num_columns))
+    figsize = (12,4*num_rows)
+    fig, axs = plt.subplots(num_rows, num_columns, sharex=True, sharey=True, figsize=figsize)
     colors = ['C0','C1','C2']
-    axs.resize((9,))
-    for i in range(9):
+    axs.resize((num_rows*num_columns,))
+    for i in range(num_plots):
         for j in range( loop_start, sim_list[0].x.shape[1], 4 ):
             box=[-0.4,0.4]
             axs[i].set_xlim(box)
@@ -440,12 +449,20 @@ def plot_multiple(sim_list:list, which:str='position', figsize = (12,12), fontsi
             # plot particle trajectories
             axs[i].plot(sim_list[i].x[:,j], sim_list[i].x[:,j+2], colors[j//4], label=label)
             # plot dots for ptcl init position
-            axs[i].plot(sim_list[i].init_cond[j],sim_list[i].init_cond[j+2], colors[j//4] + 'o')#, label=label + " start")
+            if sim_list[i].is_subtracted:
+                indices = np.tile(np.arange(sim_list[i].x.shape[1]),2)
+                init_xdiff = sim_list[i].init_cond[indices[j  ]] - sim_list[i].init_cond[indices[j+4]]
+                init_ydiff = sim_list[i].init_cond[indices[j+2]] - sim_list[i].init_cond[indices[j+6]]
+                axs[i].plot(init_xdiff, init_ydiff, colors[j//4] + 'o')
+            else:
+                init_x = sim_list[i].init_cond[j]
+                init_y = sim_list[i].init_cond[j+2]
+                axs[i].plot(init_x, init_y, colors[j//4] + 'o')#, label=label + " start")
             # plot arrows for ptcl init velocity
             # axs[i].arrow(sim_list[i].init_cond[j],sim_list[i].init_cond[j+2],5e-2*sim_list[i].init_cond[j+1],5e-2*sim_list[i].init_cond[j+3], color=colors[j//4], width=0.0005)#, label=label + " init. vel.")
     axs[0].legend(loc='upper left',prop={'size': fontsize})
     fig.tight_layout()
-    plt.show()
+    return fig, axs
 
 def generate_3body_library(use_weak:bool=False, spatiotemporal_grid=None, K=100):
     # define custom library of terms with only yukawa (rational) terms

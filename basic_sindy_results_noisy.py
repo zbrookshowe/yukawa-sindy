@@ -1,7 +1,7 @@
 '''
 File:         basic_sindy_results_noisy.py
 Written by:   Brooks Howe
-Last updated: 2025/06/02
+Last updated: 2025/06/03
 Description:  Python script which generates results using the SINDy algorithm for the 3-body Yukawa
     system of point particles with different noise levels added. Also can use weak formulation if 
     use_weak=True.
@@ -13,7 +13,7 @@ import pysindy as ps
 
 # use weak or strong formulation
 use_weak = True
-K=500 # set K for weak form
+K=100 # set K for weak form
 
 # define relative path to data directory where data is or will be stored
 data_dir = 'data/basic_noisy/analysis_trajectories'
@@ -75,6 +75,7 @@ for noise_level in noise_levels:
             model.fit(x_train, multiple_trajectories=True)
         else:
             model.fit(x_train, t=t, multiple_trajectories=True)
+        # # for testing:
         # print('STLSQ threshold:', threshold)
         # print('Std. dev. of noise:', noise_levels[0])
         # print('complexity:', model.complexity)
@@ -82,19 +83,3 @@ for noise_level in noise_levels:
         
         # save/print model as .obj and .txt files
         y3.save_SINDy_model(model, sim_list, directoryname=SINDy_dir)
-
-        # old junk, delete if func 'y3.save_SINDy_model' works
-        # save result as txt
-        # result = y3.SINDy_results_nice(model, sim_list)
-        # noise_rounded = np.format_float_positional(noise_level, unique=False, precision=5)
-        # threshold_rounded = np.format_float_positional(threshold, unique=False, precision= 3)
-        # print model
-        # for line in result:
-        #     print(line)
-
-        # save model
-        
-        # model_filename = f'noise_{noise_rounded}_thresh_{threshold_rounded}_results.txt'
-        # model_path = SINDy_dir + '/' + model_filename
-        # with open(model_path, 'w') as f:
-        #     f.writelines(line + '\n' for line in result)
