@@ -9,6 +9,7 @@ Description:  Python script containing functions used in
 # import libraries
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from scipy.integrate import solve_ivp
 import pysindy as ps
 from pysindy.differentiation import FiniteDifference
@@ -396,6 +397,7 @@ def generate_Yukawa_library():
     # Syntax: generate_Yukawa_library()
     # Description: Generates a library of custom functions
     # that can be used for SINDy analysis
+    # Note: DEPRECATED
 
     # Create library of coefs
     library_functions = [
@@ -418,6 +420,44 @@ def generate_Yukawa_library():
         library_functions=library_functions, function_names=library_function_names
     )
     return custom_library
+
+def generate_libraries(t_for_weak):
+    # define lambdas for library functions
+    library_functions = [
+        # lambda x: 1.0, get rid of this term because it is being duplicated and causing an error
+        lambda x: x,
+        lambda x: np.exp(-x) / x,
+        lambda x: np.exp(-x) / x**2,
+        lambda x: np.exp(-x) / x**3,
+        lambda x: np.exp(-x) / x**4,
+    ]
+
+    # define names for library functions
+    library_function_names = [
+        # lambda x: 1,
+        lambda x: x,
+        lambda x: "exp(-" + x + ") / " + x,
+        lambda x: "exp(-" + x + ") / " + x + "^2",
+        lambda x: "exp(-" + x + ") / " + x + "^3",
+        lambda x: "exp(-" + x + ") / " + x + "^4",
+    ]
+
+    # generate weak form library
+    np.random.seed(120398)
+    # Note: WSINDy uses a random selection of integration subdomains, so
+    # we fix a seed number so we use the same set of subdomains each time
+    # this function is called.
+    weak_lib = ps.WeakPDELibrary(
+        library_functions=library_functions,
+        spatiotemporal_grid=t_for_weak,
+        function_names=library_function_names)
+
+    # generate strong form library
+    strong_lib = ps.CustomLibrary(
+        library_functions=library_functions, 
+        function_names=library_function_names)
+    
+    return weak_lib, strong_lib
 
 
 def fit_Yukawa_model(sim_obj: Yukawa_simulation,opt_str: str='stlsq', hparam: float=0.1, 
@@ -543,6 +583,7 @@ def plot_coef_hist(hspace,
 
 
 def plot_complexity(complexity, hparams, first, last, step):
+    # Note: DEPRECATED
     # ticklist = np.arange(first, last+step, step)
     # while len(ticklist) > 10:
     #     ticklist = ticklist[0::2] # slice list by taking every other element
@@ -575,6 +616,22 @@ def plot_complexity_objs(model_list: list, figsize=(8,6), num_terms_simulation=4
     ax.hlines(num_terms_simulation, 0, np.max(thresholds), colors='k',
               linestyles='dashed', lw=1.5, label="Simulation Equations")
     ax.legend()
+    fig.tight_layout()
+    return fig, ax
+
+# Merge with above func 'plot_complexity'
+def plot_complexities(thresholds, complexities, noise_level:float):
+    fig, ax = plt.subplots(1,1)
+    labels = ["Weak model", "Strong model"]
+    for i in range (2):
+        ax.plot(thresholds, complexities[i], 'o', label=labels[i])
+    ax.hlines(3, min(thresholds), max(thresholds),linestyles='dashed', lw=1.5, label="Simulation Equations")
+    ax.set_ylim(0, None)
+    ax.yaxis.set_major_locator(MultipleLocator(base=2))
+    ax.legend()
+    ax.set_xlabel("Threshold")
+    ax.set_ylabel("Number of terms")
+    ax.set_title("Noise level: " + str(np.round(noise_level, 2)))
     fig.tight_layout()
     return fig, ax
 
@@ -618,6 +675,7 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
 # Syntax: explore_thresholds(sim1, 0.0, 2.0, 0.1)
 # Description: fits a SINDy model for thresholds in the parameter space provided
 # by the arguments, then plots number of terms vs. threshold used.
+# Note: DEPRECATED
 
     # create arrays to store complexity, hyperparameters
     # feature_names = ['x', 'v']
@@ -680,6 +738,75 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
     # return complexity, hspace, coefs
     return
 
+# Need to merge with above func 'explore_thresholds'
+def scan_thresholds(data, thresholds, verbose=False):
+    # data input must be a ys.Yukawa_simulation object or list of these
+    # initialize variables
+    if isinstance(data, list): 
+        multiple_trajectories = True
+        x_train = [sim.x for sim in data]
+        t_train = data[0].t
+    else: 
+        multiple_trajectories = False
+        x_train = data.x
+        t_train = data.t
+
+    weak_lib, strong_lib = generate_libraries(t_train)
+
+    precision = 5
+    num_simeq = 3
+    complexities = np.empty((2,0))
+    fit_weak, fit_strong = 2*(True,)
+
+    # loop through thresholds and fit weak and strong SINDy models to the given dataset
+    for thresh in thresholds:
+        # set optimizer
+        opt = ps.STLSQ(threshold=thresh)
+        if verbose:
+            print("STLSQ threshold:", thresh)
+        # fit weak model
+        if fit_weak:
+            weak_model = ps.SINDy(feature_names=["x", "v"],
+                                feature_library=weak_lib, optimizer=opt)
+            weak_model.fit(x_train, multiple_trajectories=multiple_trajectories)
+            if verbose:
+                print("\nWeak model")
+                weak_model.print(precision=precision)
+            weak_complexity = weak_model.complexity
+        else:
+            weak_complexity = -1
+
+        # fit strong model
+        if fit_strong:
+            strong_model = ps.SINDy(feature_names=["x", "v"],
+                                    feature_library=strong_lib, optimizer=opt)
+            strong_model.fit(x_train, t=t_train, multiple_trajectories=multiple_trajectories)
+            if verbose:
+                print("\nStrong model")
+                strong_model.print(precision=precision)
+                print("\n" + 100*"=" + "\n")
+            strong_complexity = strong_model.complexity
+        else:
+            strong_complexity = -1
+        
+        # append new complexities to list
+        new_complexities = np.array([weak_complexity, strong_complexity]).reshape((2,1))
+        complexities = np.append(complexities, new_complexities, axis=1)
+
+        # stop fitting models if complexity is below num_simeq
+        if weak_complexity <= num_simeq:
+            fit_weak = False
+        if strong_complexity <= num_simeq:
+            fit_strong = False
+        if not fit_weak and not fit_strong:
+            break
+
+    # change threshold to have the same dim as complexities
+    num_complexities = complexities.shape[1]
+    thresholds = thresholds[0:num_complexities]
+        
+    return thresholds, complexities
+
 
 def explore_noises(sim_obj: Yukawa_simulation,
                    first, last, step, 
@@ -710,3 +837,21 @@ def explore_noises(sim_obj: Yukawa_simulation,
         # plot model coefs, if desired
         if plot:
             plot_coefs(noisymodel,hparam=round(hparam,3),std_dev=round(noise,4))
+
+
+# added for training with multiple trajectories
+def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01):
+    # generates list of multiple trajectories with random initial conditions
+    # generate init cond
+    rng = np.random.default_rng(seed=4862039)
+    x0s = rng.normal(1, 0.2, n_sims)
+    v0s = rng.choice([-1,1], n_sims) * rng.normal(-0.01, 0.002, n_sims)
+    # simulate
+    sims = []
+    for i in range(n_sims):
+        sim = Yukawa_simulation()
+        sim.simulate(duration, dt=dt, x0=x0s[i], v0=v0s[i])
+        sim.add_gaussian_noise(noise_level=noise_level)
+        sims.append(sim)
+    
+    return sims
