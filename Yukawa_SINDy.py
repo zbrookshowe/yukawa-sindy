@@ -295,13 +295,41 @@ class Yukawa_simulation(Simulation):
     ###############################################################################################
     # Class Methods
     ###############################################################################################
-    def Yukawa_EOM(t, x): 
-        return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
-    def simulate(self, duration, func=Yukawa_EOM, dt=0.001, x0=1.0, v0=0.01):
+    def __Yukawa_EOM(self, t, x): 
+        # calculate scaling constant
+        ep_0 = 8.85e-12 # epsilon naught
+        m_d = 3.03e-14  # dust mass in kg
+        mu = m_d / 2    # reduced mass
+        n_d = 1e11      # dust density in m^-3
+        n_e = 2.81e14   # electron density in m^-3
+        e = 1.60e-19   # fundamental charge in Coulombs
+        q_d = 1e4*e     # dust charge
+        T_e = 1.24e-18  # in Joules (converted from eV)
+
+        lambda_De = ( ( ep_0 * T_e ) / ( n_e * e**2 ) )**(1/2)
+        omega_pd = np.sqrt( ( n_d * q_d**2 ) / ( ep_0 * m_d ) )
+        f_pd = omega_pd / (2 * np.pi)
+
+        A = q_d**2 / (4 * np.pi * ep_0 * mu * lambda_De**3 * f_pd**2)
+
+        return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+    def __Yukawa_EOM_unscaled(self, t, x): 
+       return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+    
+    def __harmonic_oscilator(self, t, x):
+        # included for testing purposes
+        return[x[1],-x[0]]
+
+    def simulate(self, duration, dt=0.001, x0=1.0, v0=0.01, scaled=False):
         # syntax: simulate(3, dt=0.001, x0=1, v0=0.01)
         # Generate measurement data
         t = np.arange(0, duration, dt)
         t_span = (t[0], t[-1])
+
+        if scaled:
+            func = self.__Yukawa_EOM
+        else:
+            func = self.__Yukawa_EOM_unscaled
 
         x0_train = [x0, v0]
         x_clean = solve_ivp(func, t_span, x0_train, t_eval=t, **integrator_keywords).y.T

@@ -12,16 +12,17 @@ import numpy as np
 import pysindy as ps
 
 # use weak or strong formulation
-use_weak = True
+use_weak = False
 K=100 # set K for weak form
 
 # define relative path to data directory where data is or will be stored
+# NOTE 
 data_dir = 'data/basic_noisy/analysis_trajectories'
 SINDy_dir = 'data/weak_noisy/K_test/SINDy_results'
 
 # set whether to generate and save data
-generate_data = False
-save_data = True # only relevant if generate_data is True
+generate_data = True
+save_data = False # only relevant if generate_data is True
 
 # set simulation parameters used if generating data, not relevant if using saved data
 n_trajectories = 200
