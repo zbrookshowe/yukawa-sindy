@@ -272,7 +272,7 @@ class Yukawa3body(Yukawa_SINDy.Simulation):
             a normal distribution centered at the origin with a standard deviation of std_dev. In 
             the case of a repulsive potential, the initial positions are drawn from a normal 
             distribution centered at the origin with a standard deviation of std_dev, and the 
-            initial velocitiesare calculated from those positions such that they point radially 
+            initial velocities are calculated from those positions such that they point radially 
             inward towards the origin.
         '''
         
