@@ -765,7 +765,7 @@ def scan_thresholds(data, thresholds, verbose=False):
         x_train = data.x
         t_train = data.t
         if data.is_scaled:
-            A = 0.333466
+            A = 0.0333466
         else:
             A = 1
 
