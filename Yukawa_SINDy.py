@@ -781,7 +781,7 @@ def scan_thresholds(data, thresholds, verbose=False):
         # set optimizer
         opt = ps.STLSQ(threshold=thresh)
         if verbose:
-            print("STLSQ threshold:", thresh/A)
+            print("STLSQ threshold:", thresh/A, "A")
         # fit weak model
         if fit_weak:
             weak_model = ps.SINDy(feature_names=["x", "v"],
