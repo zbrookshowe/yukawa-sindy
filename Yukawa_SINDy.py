@@ -756,10 +756,18 @@ def scan_thresholds(data, thresholds, verbose=False):
         multiple_trajectories = True
         x_train = [sim.x for sim in data]
         t_train = data[0].t
+        if data[0].is_scaled:
+            A = 0.333466
+        else:
+            A = 1
     else: 
         multiple_trajectories = False
         x_train = data.x
         t_train = data.t
+        if data.is_scaled:
+            A = 0.333466
+        else:
+            A = 1
 
     weak_lib, strong_lib = generate_libraries(t_train)
 
@@ -773,7 +781,7 @@ def scan_thresholds(data, thresholds, verbose=False):
         # set optimizer
         opt = ps.STLSQ(threshold=thresh)
         if verbose:
-            print("STLSQ threshold:", thresh)
+            print("STLSQ threshold:", thresh/A)
         # fit weak model
         if fit_weak:
             weak_model = ps.SINDy(feature_names=["x", "v"],
