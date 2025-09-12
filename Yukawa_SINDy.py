@@ -278,6 +278,7 @@ class Yukawa_simulation(Simulation):
         super().__init__()
         self.x0 = None
         self.v0 = None
+        self.is_scaled=None
 
     @property
     def x0(self):
@@ -292,6 +293,13 @@ class Yukawa_simulation(Simulation):
     @v0.setter
     def v0(self, v0):
         self._v0 = v0
+
+    @property
+    def is_scaled(self):
+        return self._is_scaled
+    @is_scaled.setter
+    def is_scaled(self, is_scaled:bool):
+        self._is_scaled = is_scaled
 
     ###############################################################################################
     # Class Methods
