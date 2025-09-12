@@ -337,8 +337,10 @@ class Yukawa_simulation(Simulation):
 
         if scaled:
             func = self.__Yukawa_EOM
+            self.is_scaled = True
         else:
             func = self.__Yukawa_EOM_unscaled
+            self.is_scaled = False
 
         x0_train = [x0, v0]
         x_clean = solve_ivp(func, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
