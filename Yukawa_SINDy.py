@@ -858,17 +858,17 @@ def explore_noises(sim_obj: Yukawa_simulation,
 
 
 # added for training with multiple trajectories
-def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01):
+def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, mu_x0s=1, mu_v0s=0.01, scaled=False):
     # generates list of multiple trajectories with random initial conditions
     # generate init cond
     rng = np.random.default_rng(seed=4862039)
-    x0s = rng.normal(1, 0.2, n_sims)
-    v0s = rng.choice([-1,1], n_sims) * rng.normal(-0.01, 0.002, n_sims)
+    x0s = rng.normal(mu_x0s, 0.2, n_sims)
+    v0s = rng.choice([-1,1], n_sims) * rng.normal(-mu_v0s, 0.002, n_sims)
     # simulate
     sims = []
     for i in range(n_sims):
         sim = Yukawa_simulation()
-        sim.simulate(duration, dt=dt, x0=x0s[i], v0=v0s[i])
+        sim.simulate(duration, dt=dt, x0=x0s[i], v0=v0s[i], scaled=scaled)
         sim.add_gaussian_noise(noise_level=noise_level)
         sims.append(sim)
     
