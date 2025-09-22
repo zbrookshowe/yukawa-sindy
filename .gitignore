@@ -1,5 +1,9 @@
-# ignore data directory
+# ignore data, figure directories
 data/
+figures/
+
+# Mac junk
+.DS_Store
 
 # ignore "journal" file
 3body_noise_analysis.ipynb
