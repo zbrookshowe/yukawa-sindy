@@ -26,6 +26,21 @@ integrator_keywords['rtol'] = 1e-12 # set relative tolerance
 integrator_keywords['method'] = 'LSODA' # Livermore Solver for Ordinary Differential Equations with Automatic Stiffness Adjustment
 integrator_keywords['atol'] = 1e-12 # set absolute tolerance
 
+# calculate scaling constant as global variable
+ep_0 = 8.85e-12 # epsilon naught
+m_d = 3.03e-14  # dust mass in kg
+mu = m_d / 2    # reduced mass
+n_d = 1e11      # dust density in m^-3
+n_e = 2.81e14   # electron density in m^-3
+e = 1.60e-19   # fundamental charge in Coulombs
+q_d = 1e4*e     # dust charge
+T_e = 1.24e-18  # in Joules (converted from eV)
+
+lambda_De = ( ( ep_0 * T_e ) / ( n_e * e**2 ) )**(1/2)
+omega_pd = np.sqrt( ( n_d * q_d**2 ) / ( ep_0 * m_d ) )
+f_pd = omega_pd / (2 * np.pi)
+
+A = q_d**2 / (4 * np.pi * ep_0 * mu * lambda_De**3 * f_pd**2)
 
 class Simulation:
     '''
@@ -187,6 +202,9 @@ class Simulation:
         if self.is_subsampled:
             raise Exception("Cannot add noise to subsampled data, " \
                             + "create new sim object to add noise.")
+        # do nothing if noise_level is zero
+        if noise_level == 0:
+            return self
         # Adds noise to data
         # generate noise
         dims = np.shape(self.x)
@@ -279,6 +297,8 @@ class Yukawa_simulation(Simulation):
         self.x0 = None
         self.v0 = None
         self.is_scaled=None
+        self.random_a_mu = None
+        self.random_a_sigma = None
 
     @property
     def x0(self):
@@ -301,27 +321,31 @@ class Yukawa_simulation(Simulation):
     def is_scaled(self, is_scaled:bool):
         self._is_scaled = is_scaled
 
+    @property
+    def random_a_mu(self):
+        return self._random_a_mu
+    @random_a_mu.setter
+    def random_a_mu(self, random_a_mu:float):
+        self._random_a_mu = random_a_mu
+
+    @property
+    def random_a_sigma(self):
+        return self._random_a_sigma
+    @random_a_sigma.setter
+    def random_a_sigma(self, random_a_sigma:float):
+        self._random_a_sigma = random_a_sigma
+
     ###############################################################################################
     # Class Methods
     ###############################################################################################
     def __Yukawa_EOM(self, t, x): 
-        # calculate scaling constant
-        ep_0 = 8.85e-12 # epsilon naught
-        m_d = 3.03e-14  # dust mass in kg
-        mu = m_d / 2    # reduced mass
-        n_d = 1e11      # dust density in m^-3
-        n_e = 2.81e14   # electron density in m^-3
-        e = 1.60e-19   # fundamental charge in Coulombs
-        q_d = 1e4*e     # dust charge
-        T_e = 1.24e-18  # in Joules (converted from eV)
-
-        lambda_De = ( ( ep_0 * T_e ) / ( n_e * e**2 ) )**(1/2)
-        omega_pd = np.sqrt( ( n_d * q_d**2 ) / ( ep_0 * m_d ) )
-        f_pd = omega_pd / (2 * np.pi)
-
-        A = q_d**2 / (4 * np.pi * ep_0 * mu * lambda_De**3 * f_pd**2)
-
         return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+
+    def __Yukawa_EOM_stochastic(self, t, x):
+        rng = np.random.default_rng()
+        random_a = rng.normal(self.random_a_mu, self.random_a_sigma)
+        return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) + random_a ]
+
     def __Yukawa_EOM_unscaled(self, t, x): 
        return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
     
@@ -673,6 +697,36 @@ def plot_pareto(train_sim: Yukawa_simulation, test_sim: Yukawa_simulation, thres
     ax.set(xlabel="Threshold", ylabel="RMSE")
     ax.set_ylim(ymin=0, ymax=5)
 
+def plot_pos_maxes(sims:list):
+    positions = np.array([sim.x[:,0] for sim in sims])
+    avg_positions = np.average(positions, axis=1)
+    sim_duration = sims[0].duration
+    fig, ax = plt.subplots(1,1)
+    ax.plot(avg_positions,"ko")
+    ax.set_title("simulation duration: " + str(sim_duration) + "$\omega_{pd}$")
+    print(sims[0].duration)
+    ax.set_xlabel("trajectory index")
+    ax.set_ylabel("max ptcl sep ($\lambda_{De}$)")
+    return fig, ax
+
+def plot_pos_avgs(avgs:np.ndarray, cutoffs, durations):
+    # determine number of rows and columns for subplots based on number of cutoffs to be tested
+    ncolumns = int(np.ceil(np.sqrt(len(cutoffs))))
+    nrows = int(np.ceil(len(cutoffs)/ncolumns))
+    # set min and max of 
+
+    # initialize plot
+    fig, axs = plt.subplots(nrows,ncolumns,figsize=(15,8), sharex=True, sharey=True)
+    axs = axs.reshape(nrows*ncolumns)
+    for i in range(avgs.shape[0]):
+        axs[i].plot(durations, avgs[i], "ko")
+        axs[i].set_title("Cutoff: " + str(cutoffs[i]) + "$\lambda_{De}$", fontsize=14)
+    # common x label
+    fig.supxlabel('duration ($\omega_{pd}^{-1}$)')
+    # common y label
+    fig.supylabel('avg ptcl separation ($\lambda_{De}$)')
+    fig.tight_layout()
+    return fig, axs
 
 ###############################################################################################
 # MAIN FUNCTIONS
@@ -756,17 +810,13 @@ def scan_thresholds(data, thresholds, verbose=False):
         multiple_trajectories = True
         x_train = [sim.x for sim in data]
         t_train = data[0].t
-        if data[0].is_scaled:
-            A = 0.333466
-        else:
+        if not data[0].is_scaled:
             A = 1
     else: 
         multiple_trajectories = False
         x_train = data.x
         t_train = data.t
-        if data.is_scaled:
-            A = 0.0333466
-        else:
+        if not data.is_scaled:
             A = 1
 
     weak_lib, strong_lib = generate_libraries(t_train)
@@ -869,7 +919,43 @@ def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, m
     for i in range(n_sims):
         sim = Yukawa_simulation()
         sim.simulate(duration, dt=dt, x0=x0s[i], v0=v0s[i], scaled=scaled)
-        sim.add_gaussian_noise(noise_level=noise_level)
+        if noise_level != 0:
+            sim.add_gaussian_noise(noise_level=noise_level)
         sims.append(sim)
     
     return sims
+
+
+def determine_avg_f(sim_duration=5, n_debyes=5, plot=False):
+    data = generate_training_data(n_sims=200, duration=sim_duration, dt=0.001, noise_level=0, 
+                                  mu_x0s=1, mu_v0s=0.01, scaled=True)
+
+    n_datapoints = len(data) * len(data[0].x)
+    xs = np.array([sim.x[:,0] for sim in data]).reshape(n_datapoints)
+
+    # print(xs.shape, "before truncation")
+
+    # truncate any positions outside of n_debyes debye lengths
+    large_xs = [i for i, x in enumerate(xs) if x >= n_debyes]
+    xs = np.delete(xs, large_xs)
+
+    # print(xs.shape, "after truncation")
+
+    accels = A * ( 1/xs + 1/xs**2 ) * np.exp( -xs )
+
+    if plot:
+        fig, ax = plot_pos_maxes(data)
+        fig.show()
+
+    return np.average(accels)
+
+def test_diff_durations(cutoffs, durations):
+    avgs = np.zeros((len(cutoffs),len(durations)))
+    # loop through cutoff values
+    for i, cutoff in enumerate(cutoffs):
+        print("cutoff", cutoff)
+        # loop through simulation durations
+        for j, duration in enumerate(durations):
+            print("duration", duration)
+            avgs[i,j] = determine_avg_f(sim_duration=duration, n_debyes=cutoff, plot=False)
+    return avgs
