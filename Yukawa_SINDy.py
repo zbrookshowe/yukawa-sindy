@@ -26,21 +26,10 @@ integrator_keywords['rtol'] = 1e-12 # set relative tolerance
 integrator_keywords['method'] = 'LSODA' # Livermore Solver for Ordinary Differential Equations with Automatic Stiffness Adjustment
 integrator_keywords['atol'] = 1e-12 # set absolute tolerance
 
-# calculate scaling constant as global variable
-ep_0 = 8.85e-12 # epsilon naught
-m_d = 3.03e-14  # dust mass in kg
-mu = m_d / 2    # reduced mass
-n_d = 1e11      # dust density in m^-3
-n_e = 2.81e14   # electron density in m^-3
-e = 1.60e-19   # fundamental charge in Coulombs
-q_d = 1e4*e     # dust charge
-T_e = 1.24e-18  # in Joules (converted from eV)
-
-lambda_De = ( ( ep_0 * T_e ) / ( n_e * e**2 ) )**(1/2)
-omega_pd = np.sqrt( ( n_d * q_d**2 ) / ( ep_0 * m_d ) )
-f_pd = omega_pd / (2 * np.pi)
-
-A = q_d**2 / (4 * np.pi * ep_0 * mu * lambda_De**3 * f_pd**2)
+# import scaling constant from working directory and declare as global variable
+from pickle import load
+with open('scaling_const.float','rb') as f:
+    A = load(f)
 
 class Simulation:
     '''
@@ -339,9 +328,11 @@ class Yukawa_simulation(Simulation):
     # Class Methods
     ###############################################################################################
     def __Yukawa_EOM(self, t, x): 
+        global A
         return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
 
     def __Yukawa_EOM_stochastic(self, t, x):
+        global A
         rng = np.random.default_rng()
         random_a = rng.normal(self.random_a_mu, self.random_a_sigma)
         return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) + random_a ]
@@ -804,6 +795,8 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
 
 # Need to merge with above func 'explore_thresholds'
 def scan_thresholds(data, thresholds, verbose=False):
+    global A
+    print(A)
     # data input must be a ys.Yukawa_simulation object or list of these
     # initialize variables
     if isinstance(data, list): 
@@ -927,6 +920,7 @@ def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, m
 
 
 def determine_avg_f(sim_duration=5, n_debyes=5, plot=False):
+    global A
     data = generate_training_data(n_sims=200, duration=sim_duration, dt=0.001, noise_level=0, 
                                   mu_x0s=1, mu_v0s=0.01, scaled=True)
 
