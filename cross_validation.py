@@ -11,6 +11,7 @@ import Yukawa_SINDy as ys
 from sklearn.model_selection import KFold
 from sklearn.metrics import root_mean_squared_error
 import numpy as np
+import xarray as xr
 import pysindy as ps
 import matplotlib.pyplot as plt
 
@@ -99,7 +100,7 @@ def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_mod
     return best_coefs, avg_coefs
 
 
-def test_on_withhold(x_withhold:np.ndarray, feature_library:ps.feature_library.base.BaseFeatureLibrary, coefs:np.ndarray):
+def test_on_withhold(x_withhold:np.ndarray, t_data:np.ndarray, feature_library:ps.feature_library.base.BaseFeatureLibrary, coefs:np.ndarray):
     '''
     Description: This function tests the SINDy model described by 'coefs' on multiple trajectories 
     data passed with 'x_withhold'. This is done by computing the rmse value between the prediction
@@ -176,7 +177,122 @@ def cross_validate(all_data:list, threshold:float, feature_library:ps.feature_li
     del test_mdl, rand_data
 
     # calculate rmse with withhold data
-    best_rmse = test_on_withhold(x_withhold, feature_library, best_coefs)
-    avg_rmse = test_on_withhold(x_withhold, feature_library, avg_coefs)
+    best_rmse = test_on_withhold(x_withhold, t_data, feature_library, best_coefs)
+    avg_rmse  = test_on_withhold(x_withhold, t_data, feature_library, avg_coefs)
     
     return best_coefs, best_rmse, avg_coefs, avg_rmse
+
+
+def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or np.ndarray):
+    '''
+    Description: This function does a sweep through the noises given by 'noise_space', 
+    generates noisy data at the different noise levels. At each noise level, a SINDy
+    analysis is performed using the library created in ys.generate_libraries. 10-fold
+    cross-validation (cv) is then performed at each level of threshold specified by
+    'threshold_space'. The coefficients from the best (lowest rmse) and average models 
+    from the cv are then collected and stored in 'xr.DataArray' objects.
+    '''
+    # define spaces not characterized by arguments
+    feature_names = ['x', 'v']
+    formulations = ['weak', 'strong']
+    model_selection_criteria = ['best', 'average']
+
+    # count for formatting the dimensions of results arrays
+    n_thresholds = len(threshold_space)
+    n_formulations = len(formulations)
+    n_CV_selections = 2
+    n_equations = 2
+    n_library_terms = 10
+    n_models = n_thresholds * n_formulations * n_CV_selections
+    n_noises = len(noise_space)
+
+    # create empty arrays for coefficients and errors
+    empty_results_array = np.zeros((
+        n_thresholds,
+        n_formulations,
+        n_CV_selections,
+        n_equations,
+        n_library_terms
+    ))
+    empty_error_array = np.zeros((
+        n_thresholds,
+        n_formulations,
+        n_CV_selections
+    ))
+
+    # loop through all noises in noise_space and perform SINDy analysis with cross-validation
+    all_coefs = []
+    all_rmses = []
+    for noise in noise_space:
+        # set up DataArray structures to save coefficients and rmses of both
+        # the best and average model from cross-validation
+
+        # common dimensions
+        param_dims=[
+            "threshold",
+            "formulation",
+            "cv_selection"
+        ]
+        coords={
+            "threshold": threshold_space,
+            "formulation": formulations,
+            "cv_selection": model_selection_criteria
+        }
+
+        # coefficients array
+        SINDy_coefficients = xr.DataArray(
+            empty_results_array,
+            dims = param_dims + [
+                "equation",
+                "library term"
+            ],
+            coords = coords
+        )
+
+        # error array
+        SINDy_model_rmses = xr.DataArray(
+            empty_error_array,
+            dims = param_dims,
+            coords = coords
+        )
+
+        # save noise level as array attribute
+        SINDy_coefficients.attrs["noise_level"] = noise
+        SINDy_model_rmses.attrs["noise_level"] = noise
+
+        # generate training data
+        sim_list = ys.generate_training_data(
+            n_sims=200,
+            duration=5,
+            dt=1e-3, 
+            noise_level=noise,
+            mu_x0s=0.5, 
+            mu_v0s=0.01, 
+            scaled=True
+        )
+
+        # generate weak and strong form libraries
+        libraries = ys.generate_libraries(sim_list[0].t)
+
+        # loop through thresholds and weak and strong formulations of SINDy
+        for i, threshold in enumerate(threshold_space):
+            for j, lib in enumerate(libraries):
+                best_coefs, best_rmse, avg_coefs, avg_rmse = cross_validate(
+                    sim_list,
+                    threshold,
+                    lib,
+                    feature_names,
+                    n_folds=10
+                )
+                # save best model info
+                SINDy_coefficients[i, j, 0] = best_coefs
+                SINDy_model_rmses[i, j, 0] = best_rmse
+                # save average model info
+                SINDy_coefficients[i, j, 1] = avg_coefs
+                SINDy_model_rmses[i, j, 1] = avg_rmse
+
+        # save all results for this noise level
+        all_coefs.append(SINDy_coefficients)
+        all_rmses.append(SINDy_model_rmses)
+
+    return all_coefs, all_rmses
