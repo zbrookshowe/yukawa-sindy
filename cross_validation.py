@@ -10,10 +10,12 @@ import Yukawa_SINDy as ys
 # import libraries
 from sklearn.model_selection import KFold
 from sklearn.metrics import root_mean_squared_error
+import pickle as pkl
 import numpy as np
 import xarray as xr
 import pysindy as ps
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 # ignore warnings generated from using LaTeX coding in matplotlib label strings
 from warnings import filterwarnings
@@ -183,7 +185,10 @@ def cross_validate(all_data:list, threshold:float, feature_library:ps.feature_li
     return best_coefs, best_rmse, avg_coefs, avg_rmse
 
 
-def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or np.ndarray):
+def two_body_param_scan(
+    noise_space:     float or int or list or np.ndarray, 
+    threshold_space: float or int or list or np.ndarray
+    ):
     '''
     Description: This function does a sweep through the noises given by 'noise_space', 
     generates noisy data at the different noise levels. At each noise level, a SINDy
@@ -192,6 +197,16 @@ def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or 
     'threshold_space'. The coefficients from the best (lowest rmse) and average models 
     from the cv are then collected and stored in 'xr.DataArray' objects.
     '''
+    # convert args to iterables if they are just one number
+    if not hasattr(noise_space, '__iter__'):
+        noise_space = [noise_space]
+    if not hasattr(threshold_space, '__iter__'):
+        threshold_space = [threshold_space]
+
+
+    # define number of folds in kfold cv
+    n_folds = 10
+
     # define spaces not characterized by arguments
     feature_names = ['x', 'v']
     formulations = ['weak', 'strong']
@@ -226,6 +241,7 @@ def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or 
     for noise in noise_space:
         # set up DataArray structures to save coefficients and rmses of both
         # the best and average model from cross-validation
+        print(f'\n\nnoise = {noise}')
 
         # common dimensions
         param_dims=[
@@ -276,13 +292,14 @@ def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or 
 
         # loop through thresholds and weak and strong formulations of SINDy
         for i, threshold in enumerate(threshold_space):
+            print(f'\nthreshold = {threshold}')
             for j, lib in enumerate(libraries):
                 best_coefs, best_rmse, avg_coefs, avg_rmse = cross_validate(
                     sim_list,
                     threshold,
                     lib,
                     feature_names,
-                    n_folds=10
+                    n_folds=n_folds
                 )
                 # save best model info
                 SINDy_coefficients[i, j, 0] = best_coefs
@@ -296,3 +313,66 @@ def two_body_param_scan(noise_space:list or np.ndarray, threshold_space:list or 
         all_rmses.append(SINDy_model_rmses)
 
     return all_coefs, all_rmses
+
+
+def plot_pareto(coefs, rmses, noise_level):
+    n_plots = len(coefs.formulation)
+    fig, axs = plt.subplots(1, n_plots, figsize=(16,9))
+    fig.suptitle(f'Noise = {noise_level:.5f}')
+    for ax, form in zip(axs, coefs.formulation):
+        ax.set_title(f'{form.to_numpy()}')
+
+        # plot best model pareto plot
+        best = 'best'
+        best_model_coefs = coefs.sel(formulation=form, cv_selection=best)
+        best_model_num_terms = np.count_nonzero(best_model_coefs, axis=(1,2))
+        best_model_rmses = rmses.sel(formulation=form, cv_selection=best)
+
+        ax.plot(best_model_num_terms, best_model_rmses, 'o', label=best)
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        # plot average model on pareto plot
+        average = 'average'
+        avg_model_coefs = coefs.sel(formulation=form, cv_selection=average)
+        avg_model_num_terms = np.count_nonzero(avg_model_coefs, axis=(1,2))
+        avg_model_rmses = rmses.sel(formulation=form, cv_selection=average)
+
+        ax.plot(avg_model_num_terms, avg_model_rmses, 'o', label=average)
+        ax.legend()
+    fig.supxlabel('Number of terms')
+    fig.supylabel('RMS Error')
+    fig.tight_layout()
+
+    return fig, axs
+
+
+def main():
+    noise_space = np.logspace(-4,-1,10)
+    threshold_space = np.arange(0,1,0.01) # placeholder
+    coefs, rmses = two_body_param_scan(noise_space,threshold_space)
+
+    # save coefs and rmses using pickle
+    data_directory = 'final_results/'
+
+    coefs_filename = 'coefs.pkl'
+    with open(data_directory + coefs_filename, 'wb') as f:
+        pkl.dump(coefs, f)
+
+    rmses_filename = 'rmses.pkl'
+    with open(data_directory + rmses_filename, 'wb') as f:
+        pkl.dump(rmses, f)
+
+    for coef, rmse, noise in zip(coefs, rmses, noise_space):
+        plot_pareto(coef,rmse, noise)
+
+def test_plot():
+    noise_space = [1e-4, 1e-2]
+    threshold_space = [0., 0.5]
+    all_coefs, all_rmses = two_body_param_scan(noise_space, threshold_space)
+    noise_to_plot = noise_space[0]
+    plot_pareto(all_coefs[0], all_rmses[0], noise_to_plot)
+
+
+
+if __name__ == '__main__':
+    test_plot()
