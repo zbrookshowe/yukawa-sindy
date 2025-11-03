@@ -458,49 +458,6 @@ def generate_weak_Yukawa_library(t):
     )
     return weak_library
 
-def generate_libraries(t_for_weak):
-    # define lambdas for library functions
-    # note: deprecated. There are now two functions (above) to generate each library
-    warnings.warn(
-        "This function is deprecated. Please use funcs 'generate_weak_Yukawa_library' " +
-        "and/or 'generate_Yukawa_library'."
-        )
-    library_functions = [
-        # lambda x: 1.0, get rid of this term because it is being duplicated and causing an error
-        lambda x: x,
-        lambda x: np.exp(-x) / x,
-        lambda x: np.exp(-x) / x**2,
-        lambda x: np.exp(-x) / x**3,
-        lambda x: np.exp(-x) / x**4,
-    ]
-
-    # define names for library functions
-    library_function_names = [
-        # lambda x: 1,
-        lambda x: x,
-        lambda x: "exp(-" + x + ") / " + x,
-        lambda x: "exp(-" + x + ") / " + x + "^2",
-        lambda x: "exp(-" + x + ") / " + x + "^3",
-        lambda x: "exp(-" + x + ") / " + x + "^4",
-    ]
-
-    # generate weak form library
-    # np.random.seed(120398)
-    # Note: WSINDy uses a random selection of integration subdomains, so
-    # we fix a seed number so we use the same set of subdomains each time
-    # this function is called.
-    weak_lib = ps.WeakPDELibrary(
-        library_functions=library_functions,
-        spatiotemporal_grid=t_for_weak,
-        function_names=library_function_names)
-
-    # generate strong form library
-    strong_lib = ps.CustomLibrary(
-        library_functions=library_functions, 
-        function_names=library_function_names)
-    
-    return weak_lib, strong_lib
-
 
 def fit_Yukawa_model(sim_obj: Yukawa_simulation,opt_str: str='stlsq', hparam: float=0.1, 
                      return_hparam_str: bool=False):
@@ -829,7 +786,8 @@ def scan_thresholds(data, thresholds, verbose=False):
         if not data.is_scaled:
             SCALING_CONST = 1
 
-    weak_lib, strong_lib = generate_libraries(t_train)
+    strong_lib = generate_Yukawa_library()
+    weak_lib = generate_weak_Yukawa_library(t_train)
 
     precision = 5
     num_simeq = 3

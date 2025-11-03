@@ -14,6 +14,7 @@ import pickle as pkl
 import numpy as np
 import xarray as xr
 import pysindy as ps
+from pysindy.feature_library.base import BaseFeatureLibrary
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 
@@ -41,7 +42,13 @@ def same_times(list_of_sims:list):
     return same_times
 
 
-def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_model:ps.SINDy, verbose:bool=False):
+def kfold_training(
+    x_train:np.ndarray, 
+    t_data:np.ndarray, 
+    n_folds:int, 
+    SINDy_model:ps.SINDy, 
+    verbose:bool=False
+):
     '''
     Description: takes in training data and associated time data and performs k-fold
     cross-validation with k=n_folds. Takes in a ps.SINDy object to extract the library
@@ -93,7 +100,7 @@ def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_mod
             #     function_names = function_names_for_weak_library,
             #     spatiotemporal_grid = t_data
             # )
-            feature_library, _ = ys.generate_libraries(t_data)
+            feature_library = ys.generate_weak_Yukawa_library(t_data)
             
         # instantiate and fit SINDy model
         opt = SINDy_model.optimizer
@@ -120,7 +127,12 @@ def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_mod
     return all_models, best_model
 
 
-def test_on_withhold(x_withhold:np.ndarray, t_data:np.ndarray, feature_library:ps.feature_library.base.BaseFeatureLibrary, coefs:np.ndarray):
+def test_on_withhold(
+    x_withhold:np.ndarray, 
+    t_data:np.ndarray, 
+    feature_library:ps.feature_library.base.BaseFeatureLibrary, 
+    coefs:np.ndarray
+):
     '''
     Description: This function tests the SINDy model described by 'coefs' on multiple trajectories 
     data passed with 'x_withhold'. This is done by computing the rmse value between the prediction
@@ -147,7 +159,13 @@ def test_on_withhold(x_withhold:np.ndarray, t_data:np.ndarray, feature_library:p
     return rmse
 
 
-def cross_validate(all_data:list, threshold:float, feature_library:ps.feature_library.base.BaseFeatureLibrary, feature_names, n_folds=10):
+def cross_validate(
+    all_data: list, 
+    threshold: float, 
+    feature_library: BaseFeatureLibrary, 
+    feature_names, 
+    n_folds=10
+):
     '''
     Description: This function performs k-fold cross-validation (cv) with k specified by the 'n_folds'
     (default 10) argument. Gets help from the 'sklearn.model_selection.KFold' object. Takes a list 
@@ -211,17 +229,15 @@ def cross_validate(all_data:list, threshold:float, feature_library:ps.feature_li
     return best_model, best_model_score
 
 
-def two_body_param_scan(
-    noise_space, 
-    threshold_space
-    ):
+def two_body_param_scan(noise_space, threshold_space):
     '''
     Description: This function does a sweep through the noises given by 'noise_space', 
     generates noisy data at the different noise levels. At each noise level, a SINDy
-    analysis is performed using the library created in ys.generate_libraries. 10-fold
-    cross-validation (cv) is then performed at each level of threshold specified by
-    'threshold_space'. The coefficients from the best (lowest rmse) and average models 
-    from the cv are then collected and stored in 'xr.DataArray' objects.
+    analysis is performed using the library created in ys.generate_Yukawa_library and
+    ys.generate_weak_Yukawa_library. 10-fold cross-validation (cv) is then performed at 
+    each level of threshold specified by 'threshold_space'. The coefficients from the 
+    best (lowest rmse) and average models from the cv are then collected and stored in 
+    'xr.DataArray' objects.
     '''
     # convert args to iterables if they are just one number
     if not hasattr(noise_space, '__iter__'):
@@ -314,7 +330,9 @@ def two_body_param_scan(
         )
 
         # generate weak and strong form libraries
-        libraries = ys.generate_libraries(sim_list[0].t)
+        strong_library = ys.generate_Yukawa_library()
+        weak_library = ys.generate_weak_Yukawa_library(sim_list[0].t)
+        libraries = (weak_library, strong_library)
 
         # loop through thresholds and weak and strong formulations of SINDy
         for i, threshold in enumerate(threshold_space):
@@ -409,8 +427,7 @@ def test_kfold_training():
     feature_names = ['x', 'v']
     opt = ps.STLSQ(threshold=threshold)
 
-
-    weak_library, strong_lib = ys.generate_libraries(sim_list[0].t)
+    weak_library = ys.generate_weak_Yukawa_library(sim_list[0].t)
     model = ps.SINDy(
         optimizer=opt, 
         feature_library=weak_library, 
