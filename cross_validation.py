@@ -69,19 +69,18 @@ def kfold_training(
     # if weak, need to recreate weak library inside loop to get
     # different random sampling of subdomains of integration
     use_weak = None
-    functions_for_weak_library = None
-    function_names_for_weak_library = None
+    K = None
     if isinstance(SINDy_model.feature_library, ps.WeakPDELibrary):
         use_weak = True
         t_to_fit = None
-        functions_for_weak_library = SINDy_model.feature_library.functions
-        function_names_for_weak_library = SINDy_model.feature_library.function_names
+        K = SINDy_model.feature_library.K
     else:
         use_weak = False
-        feature_library = SINDy_model.feature_library
         t_to_fit = t_data
 
     feature_names = SINDy_model.feature_names
+    library_functions = SINDy_model.feature_library.functions
+    library_function_names = SINDy_model.feature_library.function_names
     
     # perform KFold CV
     all_rmse = np.array([])
@@ -91,19 +90,24 @@ def kfold_training(
         # split training data
         x_train_kf = [traj for traj in x_train[train]]
         x_test_kf  = [traj for traj in x_train[test]]
-        # print(f'train shape: {train.shape}')
-        # print(f'test shape: {test.shape}')
+        
         # fit SINDy model using given threshold
         if use_weak:
-            # feature_library = ps.WeakPDELibrary(
-            #     library_functions = functions_for_weak_library,
-            #     function_names = function_names_for_weak_library,
-            #     spatiotemporal_grid = t_data
-            # )
-            feature_library = ys.generate_weak_Yukawa_library(t_data)
+            feature_library = ps.WeakPDELibrary(
+                library_functions = library_functions,
+                function_names = library_function_names,
+                spatiotemporal_grid = t_data,
+                K = K
+            )
+
+        else:
+            feature_library = ps.CustomLibrary(
+                library_functions = library_functions,
+                function_names = library_function_names
+            )
             
         # instantiate and fit SINDy model
-        opt = SINDy_model.optimizer
+        opt = ps.STLSQ(threshold = SINDy_model.optimizer.threshold)
         model = ps.SINDy(
             optimizer = opt, 
             feature_library = feature_library, 
@@ -124,7 +128,7 @@ def kfold_training(
     # pull out coefs with the lowest error from cross val
     best_model = all_models[all_rmse.argmin()]
 
-    return all_models, best_model
+    return all_models, all_rmse
 
 
 def test_on_withhold(

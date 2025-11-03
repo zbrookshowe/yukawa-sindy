@@ -447,14 +447,16 @@ def generate_Yukawa_library():
     )
     return custom_library
 
-def generate_weak_Yukawa_library(t):
+
+def generate_weak_Yukawa_library(t, K=100):
     strong_lib = generate_Yukawa_library()
     library_functions = strong_lib.functions
     library_function_names = strong_lib.function_names
     weak_library = ps.WeakPDELibrary(
         library_functions   = library_functions,
         spatiotemporal_grid = t,
-        function_names      = library_function_names
+        function_names      = library_function_names,
+        K = K
     )
     return weak_library
 
