@@ -15,6 +15,7 @@ import pysindy as ps
 from pysindy.differentiation import FiniteDifference
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
+import warnings
 
 # Plotting parameters
 plt.rcParams.update({'font.size': 18})
@@ -422,7 +423,6 @@ def generate_Yukawa_library():
     # Syntax: generate_Yukawa_library()
     # Description: Generates a library of custom functions
     # that can be used for SINDy analysis
-    # Note: DEPRECATED
 
     # Create library of coefs
     library_functions = [
@@ -442,12 +442,29 @@ def generate_Yukawa_library():
         lambda x: "exp(-" + x + ") / " + x + "^4",
     ]
     custom_library = ps.CustomLibrary(
-        library_functions=library_functions, function_names=library_function_names
+        library_functions = library_functions, 
+        function_names    = library_function_names
     )
     return custom_library
 
+def generate_weak_Yukawa_library(t):
+    strong_lib = generate_Yukawa_library()
+    library_functions = strong_lib.functions
+    library_function_names = strong_lib.function_names
+    weak_library = ps.WeakPDELibrary(
+        library_functions   = library_functions,
+        spatiotemporal_grid = t,
+        function_names      = library_function_names
+    )
+    return weak_library
+
 def generate_libraries(t_for_weak):
     # define lambdas for library functions
+    # note: deprecated. There are now two functions (above) to generate each library
+    warnings.warn(
+        "This function is deprecated. Please use funcs 'generate_weak_Yukawa_library' " +
+        "and/or 'generate_Yukawa_library'."
+        )
     library_functions = [
         # lambda x: 1.0, get rid of this term because it is being duplicated and causing an error
         lambda x: x,
