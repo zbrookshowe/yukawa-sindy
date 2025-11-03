@@ -30,7 +30,7 @@ integrator_keywords['atol'] = 1e-12 # set absolute tolerance
 # import scaling constant from working directory and declare as global variable
 from pickle import load
 with open('scaling_const.float','rb') as f:
-    A = load(f)
+    SCALING_CONST = load(f)
 
 class Simulation:
     '''
@@ -329,14 +329,14 @@ class Yukawa_simulation(Simulation):
     # Class Methods
     ###############################################################################################
     def __Yukawa_EOM(self, t, x): 
-        global A
-        return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
+        global SCALING_CONST
+        return [x[1], SCALING_CONST * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
 
     def __Yukawa_EOM_stochastic(self, t, x):
-        global A
+        global SCALING_CONST
         rng = np.random.default_rng()
         random_a = rng.normal(self.random_a_mu, self.random_a_sigma)
-        return [x[1], A * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) + random_a ]
+        return [x[1], SCALING_CONST * ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) + random_a ]
 
     def __Yukawa_EOM_unscaled(self, t, x): 
        return [x[1], ( 1/x[0] + 1/x[0]**2 ) * np.exp( -x[0] ) ]
@@ -485,7 +485,7 @@ def generate_libraries(t_for_weak):
     ]
 
     # generate weak form library
-    np.random.seed(120398)
+    # np.random.seed(120398)
     # Note: WSINDy uses a random selection of integration subdomains, so
     # we fix a seed number so we use the same set of subdomains each time
     # this function is called.
@@ -812,8 +812,8 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
 
 # Need to merge with above func 'explore_thresholds'
 def scan_thresholds(data, thresholds, verbose=False):
-    global A
-    print(A)
+    global SCALING_CONST
+    print("Scaling constant:", SCALING_CONST)
     # data input must be a ys.Yukawa_simulation object or list of these
     # initialize variables
     if isinstance(data, list): 
@@ -821,13 +821,13 @@ def scan_thresholds(data, thresholds, verbose=False):
         x_train = [sim.x for sim in data]
         t_train = data[0].t
         if not data[0].is_scaled:
-            A = 1
+            SCALING_CONST = 1
     else: 
         multiple_trajectories = False
         x_train = data.x
         t_train = data.t
         if not data.is_scaled:
-            A = 1
+            SCALING_CONST = 1
 
     weak_lib, strong_lib = generate_libraries(t_train)
 
@@ -841,7 +841,7 @@ def scan_thresholds(data, thresholds, verbose=False):
         # set optimizer
         opt = ps.STLSQ(threshold=thresh)
         if verbose:
-            print("STLSQ threshold:", np.round(thresh/A, decimals=3), "A")
+            print("STLSQ threshold:", np.round(thresh/SCALING_CONST, decimals=3), "A")
         # fit weak model
         if fit_weak:
             weak_model = ps.SINDy(feature_names=["x", "v"],
@@ -937,7 +937,7 @@ def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, m
 
 
 def determine_avg_f(sim_duration=5, n_debyes=5, plot=False):
-    global A
+    global SCALING_CONST
     data = generate_training_data(n_sims=200, duration=sim_duration, dt=0.001, noise_level=0, 
                                   mu_x0s=1, mu_v0s=0.01, scaled=True)
 
@@ -952,7 +952,7 @@ def determine_avg_f(sim_duration=5, n_debyes=5, plot=False):
 
     # print(xs.shape, "after truncation")
 
-    accels = A * ( 1/xs + 1/xs**2 ) * np.exp( -xs )
+    accels = SCALING_CONST * ( 1/xs + 1/xs**2 ) * np.exp( -xs )
 
     if plot:
         fig, ax = plot_pos_maxes(data)

@@ -24,7 +24,7 @@ filterwarnings('ignore', message = 'invalid escape sequence')
 # import scaling constant from working directory and declare as global variable
 from pickle import load
 with open('scaling_const.float','rb') as f:
-    A = load(f)
+    SCALING_CONST = load(f)
 
 def same_times(list_of_sims:list):
     '''
@@ -56,20 +56,29 @@ def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_mod
     # get SINDy parameters from input SINDy model
     feature_list = SINDy_model.get_feature_names()
     n_features = len(feature_list)
-    feature_library = SINDy_model.feature_library
-    feature_names = SINDy_model.feature_names
-    opt = SINDy_model.optimizer
 
     # check if feature_library is weak or strong, don't need
-    # to pass time as an arg into the 'fit' method of ps.SINDy
-    if isinstance(feature_library, ps.WeakPDELibrary):
+    # to pass time as an arg into the 'fit' method of ps.SINDy.
+    # if weak, need to recreate weak library inside loop to get
+    # different random sampling of subdomains of integration
+    use_weak = None
+    functions_for_weak_library = None
+    function_names_for_weak_library = None
+    if isinstance(SINDy_model.feature_library, ps.WeakPDELibrary):
+        use_weak = True
         t_to_fit = None
+        functions_for_weak_library = SINDy_model.feature_library.functions
+        function_names_for_weak_library = SINDy_model.feature_library.function_names
     else:
+        use_weak = False
+        feature_library = SINDy_model.feature_library
         t_to_fit = t_data
+
+    feature_names = SINDy_model.feature_names
     
     # perform KFold CV
     all_rmse = np.array([])
-    all_coefs = np.empty((0,x_train.shape[2],n_features))
+    all_models = np.array([])
     kf = KFold(n_splits=n_folds)
     for train, test in kf.split(x_train):
         # split training data
@@ -78,28 +87,37 @@ def kfold_training(x_train:np.ndarray, t_data:np.ndarray, n_folds:int, SINDy_mod
         # print(f'train shape: {train.shape}')
         # print(f'test shape: {test.shape}')
         # fit SINDy model using given threshold
-        mdl = ps.SINDy(optimizer=opt, feature_library=feature_library, feature_names=feature_names)
-        mdl.fit(x_train_kf, t_to_fit, multiple_trajectories=True)
-        if verbose: mdl.print()
+        if use_weak:
+            # feature_library = ps.WeakPDELibrary(
+            #     library_functions = functions_for_weak_library,
+            #     function_names = function_names_for_weak_library,
+            #     spatiotemporal_grid = t_data
+            # )
+            feature_library, _ = ys.generate_libraries(t_data)
+            
+        # instantiate and fit SINDy model
+        opt = SINDy_model.optimizer
+        model = ps.SINDy(
+            optimizer = opt, 
+            feature_library = feature_library, 
+            feature_names = feature_names
+        )
+        model.fit(x_train_kf, t_to_fit, multiple_trajectories=True)
+        if verbose: model.print()
 
-        # get coefs and append to all_coefs
-        coefs = mdl.coefficients()
-        coefs = coefs.reshape((1,*coefs.shape))
-        all_coefs = np.vstack((all_coefs,coefs))
+        # append to list of models
+        all_models = np.hstack((all_models,model))
 
         # validate model against test data
         # print(f'test traj shape: {x_test_kf[0].shape}') # included for testing
-        # print(f'coefficients shape: {mdl.coefficients().shape}') # included for testing
-        rmse = mdl.score(x_test_kf, t=t_data, multiple_trajectories=True, metric=root_mean_squared_error)
+        # print(f'coefficients shape: {model.coefficients().shape}') # included for testing
+        rmse = model.score(x_test_kf, t=t_data, multiple_trajectories=True, metric=root_mean_squared_error)
         all_rmse = np.hstack((all_rmse, rmse))
 
     # pull out coefs with the lowest error from cross val
-    best_coefs = all_coefs[all_rmse.argmin()]
-    
-    # extract average model with average of all coef
-    avg_coefs = coefs.mean(axis=0)
+    best_model = all_models[all_rmse.argmin()]
 
-    return best_coefs, avg_coefs
+    return all_models, best_model
 
 
 def test_on_withhold(x_withhold:np.ndarray, t_data:np.ndarray, feature_library:ps.feature_library.base.BaseFeatureLibrary, coefs:np.ndarray):
@@ -169,25 +187,33 @@ def cross_validate(all_data:list, threshold:float, feature_library:ps.feature_li
 
     # get number of terms in library
     rand_data = np.random.random((n_timesteps,n_features))
-    test_mdl = ps.SINDy(optimizer=opt, feature_library=feature_library, feature_names=feature_names)
-    test_mdl.fit(rand_data)
+    test_model = ps.SINDy(optimizer=opt, feature_library=feature_library, feature_names=feature_names)
+    test_model.fit(rand_data)
 
     # perform kfold cv
-    best_coefs, avg_coefs = kfold_training(x_train,t_data,n_folds,test_mdl)
+    # best_coefs, avg_coefs = kfold_training(x_train,t_data,n_folds,test_model)
+    all_models, best_model = kfold_training(x_train,t_data,n_folds,test_model)
 
     # delete unnecessary vars
-    del test_mdl, rand_data
+    del test_model, rand_data
 
     # calculate rmse with withhold data
-    best_rmse = test_on_withhold(x_withhold, t_data, feature_library, best_coefs)
-    avg_rmse  = test_on_withhold(x_withhold, t_data, feature_library, avg_coefs)
+    # best_rmse = test_on_withhold(x_withhold, t_data, feature_library, best_coefs)
+    # avg_rmse  = test_on_withhold(x_withhold, t_data, feature_library, avg_coefs)
+    best_model_score = best_model.score(
+        x_withhold,
+        t=t_data, 
+        multiple_trajectories=True, 
+        metric=root_mean_squared_error
+    )
+
     
-    return best_coefs, best_rmse, avg_coefs, avg_rmse
+    return best_model, best_model_score
 
 
 def two_body_param_scan(
-    noise_space:     float or int or list or np.ndarray, 
-    threshold_space: float or int or list or np.ndarray
+    noise_space, 
+    threshold_space
     ):
     '''
     Description: This function does a sweep through the noises given by 'noise_space', 
@@ -373,6 +399,29 @@ def test_plot():
     plot_pareto(all_coefs[0], all_rmses[0], noise_to_plot)
 
 
+def test_kfold_training():
+    sim_list = ys.generate_training_data(mu_x0s=0.5, noise_level=0.1, scaled=True)
+
+    x_train = [sim.x for sim in sim_list[0:150]]
+    x_test = [sim.x for sim in sim_list[150:200]]
+
+    threshold = 0.7
+    feature_names = ['x', 'v']
+    opt = ps.STLSQ(threshold=threshold)
+
+
+    weak_library, strong_lib = ys.generate_libraries(sim_list[0].t)
+    model = ps.SINDy(
+        optimizer=opt, 
+        feature_library=weak_library, 
+        feature_names=feature_names
+    )
+    model.fit(x_train, t=sim_list[0].t, multiple_trajectories=True)
+    coefs = model.coefficients()
+
+    model.score(x_test, t=sim_list[0].t, multiple_trajectories=True)
+
+
 
 if __name__ == '__main__':
-    test_plot()
+    test_kfold_training()
