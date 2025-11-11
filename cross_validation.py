@@ -41,12 +41,21 @@ def same_times(list_of_sims:list):
             break
     return same_times
 
+def absolute_difference(y_true, y_pred):
+    '''
+    Description: helper function that computes the absolute difference 
+    between 2 numpy arrays of the same shape.
+    '''
+    difference_array = np.abs(y_true - y_pred)
+    return difference_array.sum()
+
 
 def kfold_training(
     x_train:np.ndarray, 
     t_data:np.ndarray, 
     n_folds:int, 
-    SINDy_model:ps.SINDy, 
+    SINDy_model:ps.SINDy,
+    true_coefficients: np.ndarray, 
     verbose:bool=False
 ):
     '''
@@ -84,6 +93,7 @@ def kfold_training(
     
     # perform KFold CV
     all_rmse = np.array([])
+    all_coef_diff = np.array([])
     all_models = np.array([])
     kf = KFold(n_splits=n_folds)
     for train, test in kf.split(x_train):
@@ -120,15 +130,15 @@ def kfold_training(
         all_models = np.hstack((all_models,model))
 
         # validate model against test data
-        # print(f'test traj shape: {x_test_kf[0].shape}') # included for testing
-        # print(f'coefficients shape: {model.coefficients().shape}') # included for testing
         rmse = model.score(x_test_kf, t=t_data, multiple_trajectories=True, metric=root_mean_squared_error)
         all_rmse = np.hstack((all_rmse, rmse))
 
-    # pull out coefs with the lowest error from cross val
-    best_model = all_models[all_rmse.argmin()]
+        # calculate deviation from true coefficients
+        coefficients =  model.coefficients()
+        coef_diff = absolute_difference(true_coefficients, coefficients)
+        all_coef_diff = np.hstack((all_coef_diff, coef_diff))
 
-    return all_models, all_rmse
+    return all_models, all_coef_diff, all_rmse
 
 
 def test_on_withhold(
@@ -168,17 +178,18 @@ def cross_validate(
     threshold: float, 
     feature_library: BaseFeatureLibrary, 
     feature_names, 
+    true_coefficients,
     n_folds=10
 ):
     '''
-    Description: This function performs k-fold cross-validation (cv) with k specified by the 'n_folds'
-    (default 10) argument. Gets help from the 'sklearn.model_selection.KFold' object. Takes a list 
-    of Yukawa_SINDy.Yukawa_simulation objects, a SINDy STLSQ threshold, a feature library 
-    ('pysindy.BaseFeatureLibrary' child objs), and feature names as args. Returns a rank 3 numpy
-    array of coefficients from the best two models: the one with the lowest error and the average
-    coefficients of all models generated during k-fold cv. Generates coefficients using the weak
-    library and makes predictions using those coefficients and the strong library's 'transform'
-    method.
+    Description: This function performs k-fold cross-validation (cv) with k specified by the 
+    'n_folds' (default 10) argument. Gets help from the 'sklearn.model_selection.KFold' object.
+    Takes a list of Yukawa_SINDy.Yukawa_simulation objects, a SINDy STLSQ threshold, a feature
+    library ('pysindy.BaseFeatureLibrary' child objs), and feature names as args. Returns a SINDy
+    object that performed best on prediction during cross-validation, their rmse scores on the
+    withhold data, a SINDy object with least deviation from the true coefficients passed in the arg
+    'true_coefficients', and their respective rmse scores on the withhold data.
+
     '''
     # check if list of sim objects
     for item in all_data:
@@ -207,30 +218,32 @@ def cross_validate(
     # declare optimizer with given threshold
     opt = ps.STLSQ(threshold=threshold)
 
-    # get number of terms in library
-    rand_data = np.random.random((n_timesteps,n_features))
+    # generate fitted SINDy instance as 'test model' to pass into 'kfold_training'
+    rand_data = np.random.random((n_timesteps, n_features))
     test_model = ps.SINDy(optimizer=opt, feature_library=feature_library, feature_names=feature_names)
     test_model.fit(rand_data)
 
     # perform kfold cv
-    # best_coefs, avg_coefs = kfold_training(x_train,t_data,n_folds,test_model)
-    all_models, best_model = kfold_training(x_train,t_data,n_folds,test_model)
+    all_models, all_coef_diff, all_rmse = kfold_training(x_train, t_data, n_folds, test_model, true_coefficients)
 
     # delete unnecessary vars
     del test_model, rand_data
 
+    # extract best and truest model
+    best_model = all_models[all_rmse.argmin()]
+    truest_model = all_models[all_coef_diff.argmin()]
+
     # calculate rmse with withhold data
-    # best_rmse = test_on_withhold(x_withhold, t_data, feature_library, best_coefs)
-    # avg_rmse  = test_on_withhold(x_withhold, t_data, feature_library, avg_coefs)
-    best_model_score = best_model.score(
-        x_withhold,
-        t=t_data, 
-        multiple_trajectories=True, 
-        metric=root_mean_squared_error
-    )
+    score_kwargs = {
+        't': t_data,
+        'multiple_trajectories': True,
+        'metric': root_mean_squared_error
+    }
+    best_model_score = best_model.score(x_withhold, **score_kwargs)
+    truest_model_score = truest_model.score(x_withhold, **score_kwargs)
 
     
-    return best_model, best_model_score
+    return best_model, best_model_score, truest_model, truest_model_score
 
 
 def two_body_param_scan(noise_space, threshold_space):
