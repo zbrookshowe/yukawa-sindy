@@ -16,7 +16,7 @@ from pysindy.differentiation import FiniteDifference
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
 import os
-import pickle as pkl
+import dill
 
 # Plotting parameters
 plt.rcParams.update({'font.size': 18})
@@ -722,7 +722,7 @@ def pickle_data(data, directory_name:str, file_name:str, overwrite:bool = False)
 
     # create file if does not exist, overwrite if it does exist
     with open(file_path, 'wb') as f:
-        pkl.dump(data, f)
+        dill.dump(data, f)
 
 
 def unpickle_data(directory_name:str, file_name:str):
@@ -738,7 +738,7 @@ def unpickle_data(directory_name:str, file_name:str):
 
     # create file if does not exist, overwrite if it does exist
     with open(file_path, 'rb') as f:
-        data = pkl.load(f)
+        data = dill.load(f)
     return data
 
 
