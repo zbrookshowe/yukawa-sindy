@@ -15,7 +15,8 @@ import pysindy as ps
 from pysindy.differentiation import FiniteDifference
 from sklearn.linear_model import Lasso
 from sklearn.metrics import mean_squared_error
-import warnings
+import os
+import pickle as pkl
 
 # Plotting parameters
 plt.rcParams.update({'font.size': 18})
@@ -698,6 +699,49 @@ def plot_pos_avgs(avgs:np.ndarray, cutoffs, durations):
 ###############################################################################################
 # MAIN FUNCTIONS
 ###############################################################################################
+def pickle_data(data, directory_name:str, file_name:str, overwrite:bool = False):
+    '''
+    Description: Helper function that saves python object in data using
+    pickle.dump in location specified by directory_name + file_name. 
+    Overwrites existing files if overwrite=True, creates parent 
+    directory if it does not exist.
+    '''
+    # correct formatting of directory_name for os.path functions
+    if directory_name[-1] == '/':
+        directory_name = directory_name[:-1]
+    file_path = directory_name + '/' + file_name
+
+    # raise error if would overwrite and overwrite = False
+    if os.path.exists(file_path) and not overwrite:
+        print('File exists and overwrite is set to False, no file was saved.')
+        return
+
+    # check for parent directory, create if does not exist
+    if not os.path.exists(directory_name):
+        os.mkdir(directory_name)
+
+    # create file if does not exist, overwrite if it does exist
+    with open(file_path, 'wb') as f:
+        pkl.dump(data, f)
+
+
+def unpickle_data(directory_name:str, file_name:str):
+    '''
+    Description: Helper function that unpickles data from location
+    specified by directory_name + file_name. Returns contents of pickle
+    file.
+    '''
+    # correct formatting of directory_name for os.path functions
+    if directory_name[-1] == '/':
+        directory_name = directory_name[:-1]
+    file_path = directory_name + '/' + file_name
+
+    # create file if does not exist, overwrite if it does exist
+    with open(file_path, 'rb') as f:
+        data = pkl.load(f)
+    return data
+
+
 def explore_thresholds(sim_obj: Yukawa_simulation,
                        first, last, step,
                        verbose=False, plot=False,
