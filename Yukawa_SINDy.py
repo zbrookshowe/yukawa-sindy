@@ -742,6 +742,32 @@ def unpickle_data(directory_name:str, file_name:str):
     return data
 
 
+def print_from_coefs(coefs, precision=5):
+    '''
+    Description: Bypasses SINDy method 'print' and just prints the SINDy model for the 2-body
+    system from the model coefficients in the form of a numpy array of dims (2, 10).
+    '''
+    if coefs.shape != (2, 10):
+        raise ValueError("Coefficient matrix should be a numpy array of dims (2, 10)")
+
+    # extract feature names from library
+    library = generate_Yukawa_library()
+    rand_data = np.random.random((10,2))
+    library.fit(rand_data)
+    basis_names = np.array(library.get_feature_names())
+    
+    # print equations
+    feature_names = ['x0', 'x1']
+    for feat, eq in zip(feature_names, coefs):
+        mask = eq!=0
+        nonzero_coefs = eq[mask]
+        nonzero_functions = basis_names[mask]
+        eq_string = [f'{coef:.{precision}f} {term}' for coef, term in zip(nonzero_coefs, nonzero_functions)]
+        print(
+            f'({feat})\' = ' + ' + '.join(eq_string)
+        )
+
+
 def explore_thresholds(sim_obj: Yukawa_simulation,
                        first, last, step,
                        verbose=False, plot=False,
