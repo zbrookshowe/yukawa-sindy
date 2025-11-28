@@ -742,13 +742,24 @@ def unpickle_data(directory_name:str, file_name:str):
     return data
 
 
-def print_from_coefs(coefs, precision=5):
+def print_from_coefs(coefs, precision=5, normalize=False):
     '''
     Description: Bypasses SINDy method 'print' and just prints the SINDy model for the 2-body
     system from the model coefficients in the form of a numpy array of dims (2, 10).
     '''
     if coefs.shape != (2, 10):
         raise ValueError("Coefficient matrix should be a numpy array of dims (2, 10)")
+
+    # normalize coefficients by the scaling constant if normalize is set to True
+    global SCALING_CONST
+    A = [' ', ' ']
+    if normalize:
+        A[1] = ' A '
+        normalization_matrix = np.array(
+            [10*[1.],10*[SCALING_CONST]]
+        )
+        coefs = coefs / normalization_matrix
+
 
     # extract feature names from library
     library = generate_Yukawa_library()
@@ -758,11 +769,11 @@ def print_from_coefs(coefs, precision=5):
     
     # print equations
     feature_names = ['x0', 'x1']
-    for feat, eq in zip(feature_names, coefs):
+    for feat, norm_factor, eq in zip(feature_names, A, coefs):
         mask = eq!=0
         nonzero_coefs = eq[mask]
         nonzero_functions = basis_names[mask]
-        eq_string = [f'{coef:.{precision}f} {term}' for coef, term in zip(nonzero_coefs, nonzero_functions)]
+        eq_string = [f'{coef:.{precision}f}{norm_factor}{term}' for coef, term in zip(nonzero_coefs, nonzero_functions)]
         print(
             f'({feat})\' = ' + ' + '.join(eq_string)
         )
@@ -841,6 +852,9 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
 
 # Need to merge with above func 'explore_thresholds'
 def scan_thresholds(data, thresholds, verbose=False):
+    '''
+    Description: 
+    '''
     global SCALING_CONST
     print("Scaling constant:", SCALING_CONST)
     # data input must be a ys.Yukawa_simulation object or list of these
@@ -912,6 +926,8 @@ def scan_thresholds(data, thresholds, verbose=False):
     # change threshold to have the same dim as complexities
     num_complexities = complexities.shape[1]
     thresholds = thresholds[0:num_complexities]
+
+    # set global SCALING_CONST back at
         
     return thresholds, complexities
 
@@ -965,38 +981,3 @@ def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, m
     
     return sims
 
-
-def determine_avg_f(sim_duration=5, n_debyes=5, plot=False):
-    global SCALING_CONST
-    data = generate_training_data(n_sims=200, duration=sim_duration, dt=0.001, noise_level=0, 
-                                  mu_x0s=1, mu_v0s=0.01, scaled=True)
-
-    n_datapoints = len(data) * len(data[0].x)
-    xs = np.array([sim.x[:,0] for sim in data]).reshape(n_datapoints)
-
-    # print(xs.shape, "before truncation")
-
-    # truncate any positions outside of n_debyes debye lengths
-    large_xs = [i for i, x in enumerate(xs) if x >= n_debyes]
-    xs = np.delete(xs, large_xs)
-
-    # print(xs.shape, "after truncation")
-
-    accels = SCALING_CONST * ( 1/xs + 1/xs**2 ) * np.exp( -xs )
-
-    if plot:
-        fig, ax = plot_pos_maxes(data)
-        fig.show()
-
-    return np.average(accels)
-
-def test_diff_durations(cutoffs, durations):
-    avgs = np.zeros((len(cutoffs),len(durations)))
-    # loop through cutoff values
-    for i, cutoff in enumerate(cutoffs):
-        print("cutoff", cutoff)
-        # loop through simulation durations
-        for j, duration in enumerate(durations):
-            print("duration", duration)
-            avgs[i,j] = determine_avg_f(sim_duration=duration, n_debyes=cutoff, plot=False)
-    return avgs
