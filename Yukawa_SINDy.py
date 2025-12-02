@@ -758,7 +758,7 @@ def print_from_coefs(coefs, precision=5, normalize=False):
         normalization_matrix = np.array(
             [10*[1.],10*[SCALING_CONST]]
         )
-        coefs = coefs / normalization_matrix
+        coefs = coefs / normalization_matrix # Note: cannot use /= operator here because it modifies the argument outside of the function somehow
 
 
     # extract feature names from library
@@ -850,10 +850,14 @@ def explore_thresholds(sim_obj: Yukawa_simulation,
     # return complexity, hspace, coefs
     return
 
-# Need to merge with above func 'explore_thresholds'
+
+# Need to merge with above func 'explore_thresholds' and add cross-validated functionality
 def scan_thresholds(data, thresholds, verbose=False):
     '''
-    Description: 
+    Description: Fits weak and strong SINDy models, stopping once the number of terms in the fitted
+    model is less than the number of simulation equations. Returns a list of model complexities, as
+    well as truncated list of inputted thresholds so that len(complexities) == len(thresholds).
+    NOTE: Need to add cross-validation into this function.
     '''
     global SCALING_CONST
     print("Scaling constant:", SCALING_CONST)
@@ -964,7 +968,7 @@ def explore_noises(sim_obj: Yukawa_simulation,
 
 
 # added for training with multiple trajectories
-def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, mu_x0s=1, mu_v0s=0.01, scaled=False):
+def generate_training_data(n_sims=200, duration=5, dt=0.001, noise_level=0.01, mu_x0s=1, mu_v0s=0.01, scaled=True):
     # generates list of multiple trajectories with random initial conditions
     # generate init cond
     rng = np.random.default_rng(seed=4862039)

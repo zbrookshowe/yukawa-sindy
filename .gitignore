@@ -1,7 +1,8 @@
 # ignore data, figure directories
 data/
 figures/
-paper_results/weak_vs_strong
+final_results/
+old_results/
 
 # Mac junk
 .DS_Store
