@@ -449,7 +449,7 @@ def generate_Yukawa_library():
     return custom_library
 
 
-def generate_weak_Yukawa_library(t, K=100):
+def generate_weak_Yukawa_library(t, K=500):
     strong_lib = generate_Yukawa_library()
     library_functions = strong_lib.functions
     library_function_names = strong_lib.function_names

@@ -33,7 +33,12 @@ with open('scaling_const.float', 'rb') as f:
 def noise_analysis(noise_level: float, threshold_space: np.ndarray):
     # set up place to save results
     noise_name = f'{noise_level:.3f}'.replace('.', '_')
-    directory_name = 'weak_noise_robustness/noise_' + noise_name
+    directory_name = 'paper_results/weak_noise_robustness/noise_' + noise_name
+    overwrite = False
+
+    # make sure data will save before performing analysis
+    if not overwrite and os.path.exists(directory_name):
+        raise Exception("Location exists and overwrite is set to False so data will not be saved.")
 
     # generate 200 trajectories with random initial conditions on which to run SINDy analysis
     simulation_list = ys.generate_training_data(
@@ -52,7 +57,7 @@ def noise_analysis(noise_level: float, threshold_space: np.ndarray):
     all_truest_model_scores = []
     for threshold in threshold_space:
         # generate weak library
-        feature_library = ys.generate_weak_Yukawa_library(simulation_list[0].t)
+        feature_library = ys.generate_weak_Yukawa_library(simulation_list[0].t, K = 500)
 
         feature_names = ['x', 'v']
         true_coefficients = np.array(
@@ -101,7 +106,7 @@ def noise_analysis(noise_level: float, threshold_space: np.ndarray):
             data,
             directory_name,
             file_name,
-            overwrite = False
+            overwrite = overwrite
         )
 
     return
@@ -109,8 +114,7 @@ def noise_analysis(noise_level: float, threshold_space: np.ndarray):
 def main():
     # set up noises and thresholds to scan through
     threshold_space = np.arange(0., 1.2, 0.2)
-    noise_space = np.arange(0.2, 0.5, 0.1)
-
+    noise_space = np.arange(0.1, 0.5, 0.1)
     # loop through and save data
     for noise_level in noise_space:
         noise_analysis(noise_level, threshold_space)
