@@ -718,7 +718,8 @@ def pickle_data(data, directory_name:str, file_name:str, overwrite:bool = False)
 
     # check for parent directory, create if does not exist
     if not os.path.exists(directory_name):
-        os.mkdir(directory_name)
+        print('creating parent dir')
+        os.makedirs(directory_name)
 
     # create file if does not exist, overwrite if it does exist
     with open(file_path, 'wb') as f:
