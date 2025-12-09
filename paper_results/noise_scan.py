@@ -50,13 +50,13 @@ def noise_scan(thresholds, noise_space):
 
 def main():
     # loop through noise levels, hitting each multiple times, at only one threshold.
-    num_cross_vals = 5
+    num_cross_vals = 10
     noise_space =   num_cross_vals*[1e-4] + num_cross_vals*[1e-3] + num_cross_vals*[1e-2] + num_cross_vals*[1e-1]
-    thresholds  = 3*num_cross_vals*[0.2]                                                  + num_cross_vals*[0.4]
+    thresholds  = 3*num_cross_vals*[0.5]                                                  + num_cross_vals*[0.7]
     truest_model_coefs, truest_model_scores = noise_scan(thresholds, noise_space)
 
     # save data
-    data_directory = 'paper_results/weak_noise_robustness/noise_scan'
+    data_directory = 'paper_results/weak_noise_robustness/noise_scan2'
     data_to_save = [noise_space, thresholds, truest_model_coefs, truest_model_scores]
     file_names = [
         'noises.pickle',
