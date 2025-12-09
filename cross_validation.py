@@ -50,6 +50,24 @@ def absolute_difference(y_true, y_pred):
     return difference_array.sum()
 
 
+def compute_coef_devs(coefficients: list):
+    '''
+    Description: takes in a list of 2-body coefficient matrices and computes the 
+    deviation from true coefficients.
+    '''
+    # define true coefs
+    true_coefficients = np.array(
+        [[0., 1., 0.,            0., 0.,            0., 0., 0., 0., 0.],
+        [0., 0., SCALING_CONST, 0., SCALING_CONST, 0., 0., 0., 0., 0.]]
+    )
+
+    coef_devs = []
+    for i, learned_coefs in enumerate(coefficients):
+        coef_dev = absolute_difference(true_coefficients, learned_coefs)
+        coef_devs.append(coef_dev)
+    return coef_devs
+
+
 def kfold_training(
     x_train:np.ndarray, 
     t_data:np.ndarray, 
