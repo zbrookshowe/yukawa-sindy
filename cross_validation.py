@@ -148,7 +148,8 @@ def kfold_training(
         all_models = np.hstack((all_models,model))
 
         # validate model against test data
-        rmse = model.score(x_test_kf, t=t_data, multiple_trajectories=True, metric=root_mean_squared_error)
+        rmse = model.score(x_test_kf, t=t_data, 
+            multiple_trajectories=True, metric=root_mean_squared_error)
         all_rmse = np.hstack((all_rmse, rmse))
 
         # calculate deviation from true coefficients
@@ -214,7 +215,8 @@ def cross_validate(
     # check if list of sim objects
     for item in all_data:
         if not isinstance(item, ys.Yukawa_simulation):
-            raise TypeError("Argument 'all_data' should be list of 'Yukawa_SINDy.Yukawa_simulation' objects")
+            raise TypeError("Argument 'all_data' should be list of " +
+                "'Yukawa_SINDy.Yukawa_simulation' objects")
     # check if all time grids are the same
     if not same_times(all_data):
         raise Exception("All simulations do not have the same time grid.")
@@ -229,7 +231,9 @@ def cross_validate(
     # split data into withhold(testing) and training data
     n_trajectories = len(all_data)
     rng = np.random.default_rng(seed=10235783)
-    withhold_idxs = rng.choice(x_data.shape[0], np.floor(0.25 * n_trajectories).astype(int), replace=False)
+    withhold_idxs = rng.choice(
+        x_data.shape[0], np.floor(0.25 * n_trajectories).astype(int), replace=False
+    )
     withhold_idxs.sort()
     train_idxs = np.delete(np.arange(len(all_data)), withhold_idxs)
     x_train = x_data[train_idxs]
@@ -240,11 +244,15 @@ def cross_validate(
 
     # generate fitted SINDy instance as 'test model' to pass into 'kfold_training'
     rand_data = np.random.random((n_timesteps, n_features))
-    test_model = ps.SINDy(optimizer=opt, feature_library=feature_library, feature_names=feature_names)
+    test_model = ps.SINDy(
+        optimizer=opt, feature_library=feature_library, feature_names=feature_names
+    )
     test_model.fit(rand_data)
 
     # perform kfold cv
-    all_models, all_coef_diff, all_rmse = kfold_training(x_train, t_data, n_folds, test_model, true_coefficients)
+    all_models, all_coef_diff, all_rmse = kfold_training(
+        x_train, t_data, n_folds, test_model, true_coefficients
+    )
 
     # delete unnecessary vars
     del test_model, rand_data
@@ -441,6 +449,11 @@ def plot_pareto(coefs, rmses, noise_level):
     return fig, axs
 
 
+###################################################################################################
+# TEST FUNCTIONS                                                                                  #
+###################################################################################################
+
+
 def main():
     noise_space = np.logspace(-4,-1,10)
     threshold_space = np.arange(0,1,0.01) # placeholder
@@ -510,7 +523,24 @@ def test_cross_validate():
         [0., 0., SCALING_CONST, 0., SCALING_CONST, 0., 0., 0., 0., 0.]]
     )
 
-    def scan_thresholds(threshold_space, simulation_list, feature_library, feature_names, true_coefficients, n_folds):
+    def scan_thresholds(
+        threshold_space, 
+        simulation_list, 
+        feature_library, 
+        feature_names, 
+        true_coefficients, 
+        n_folds
+        ):
+        '''
+        Description: Scans through all thresholds in iterable 'threshold_space' and does SINDy 
+        anlysis with cross-validation on a list of 'Yukawa_SINDy.Yukawa_simulation' objects. 
+        Collects the models with the lowest prediction error on test data in output list 
+        'all_best_models' and their associated error values in 'all_best_model_scores'. Does the
+        same thing with models with the lowest coefficient deviation, storing them in
+        'all_truest_models' and their associated coefficient deviations in
+        'all_truest_model_scores'.
+        '''
+
         all_best_models = []
         all_best_model_scores = []
         all_truest_models = []
@@ -536,7 +566,10 @@ def test_cross_validate():
     n_folds = 10
 
     # threshold analysis
-    model_info = scan_thresholds(threshold_space, simulation_list, feature_library, feature_names, true_coefficients, n_folds)
+    model_info = scan_thresholds(
+        threshold_space, simulation_list, feature_library,
+        feature_names, true_coefficients, n_folds
+    )
     # unpack
     all_best_models, all_best_model_scores, all_truest_models, all_truest_model_scores = model_info
 
