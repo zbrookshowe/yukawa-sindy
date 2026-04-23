@@ -9,10 +9,10 @@ The Yukawa potential serves as a simplified model for **interparticle forces in 
 ## 🚀 Project Overview
 
 The goal of this repository is to:
-- Simulate the dynamics of three interacting particles under a **Yukawa potential**.
+- Simulate the dynamics of two interacting particles under a **Yukawa potential**.
 - Apply **SINDy** to the generated trajectory data with synthetic noise to **discover the governing equations**.
 - Evaluate the accuracy, robustness, and generalizability of the learned models with different noise levels and **cross-validation**.
-- Provide a **reproducible reference** for figures, data, and results used in a forthcoming scientific publication.
+- Provide a **reproducible reference** for figures, data, and results used in a forthcoming scientific publication, see arXiv pre-print [here](https://doi.org/10.48550/arXiv.2603.09855).
 
 Note: This is primarily a **personal research repository**, serving as a record of the code and methods used to produce results and visualizations. If you have questions or concerns, feel free to submit an issue. 
 
