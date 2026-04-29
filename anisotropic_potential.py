@@ -56,7 +56,8 @@ class Anisotropic_simulation(ys.Simulation):
     def __init__(self, rng: np.random.Generator=None):
         super().__init__()
         self.x_cart = None
-        self.init_cond = None
+        self.x0 = None
+        self.x0_cart = None
         if rng is None: # create rng if none given
             seed_rng = np.random.default_rng()
             seed_num = seed_rng.integers(10000,100000)
@@ -82,22 +83,33 @@ class Anisotropic_simulation(ys.Simulation):
         self._x_cart = x_cart
 
     @property
-    def init_cond(self):
+    def x0(self):
         # print("duration getter called") # for testing
-        return self._init_cond
-    @init_cond.setter
-    def init_cond(self, init_cond):
+        return self._x0
+    @x0.setter
+    def x0(self, x0):
         # print("duration setter called") # for testing
         # if duration >= 10:
         #     raise ValueError("duration must be less than 10")
-        self._init_cond = init_cond
+        self._x0 = x0
+
+    @property
+    def x0_cart(self):
+        # print("duration getter called") # for testing
+        return self._x0_cart
+    @x0_cart.setter
+    def x0_cart(self, x0_cart):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._x0_cart = x0_cart
 
     @property
     def rng(self):
         # print("duration getter called") # for testing
         return self._rng
     @rng.setter
-    def init_cond(self, rng):
+    def rng(self, rng):
         # print("duration setter called") # for testing
         # if duration >= 10:
         #     raise ValueError("duration must be less than 10")
@@ -135,10 +147,9 @@ class Anisotropic_simulation(ys.Simulation):
         p_dot       = x[3]**2 / x[0]**3 + epsilon * np.exp( - x[0] ) / x[0]**2 + \
                         epsilon * np.exp( - x[0] ) / x[0] - epsilon * 3 * alpha * Mach**2 * P_2( np.cos(x[2]) )/ x[0]**4
         theta_dot   = x[3] / x[0]**2
-        l_dot       = epsilon * alpha * Mach**2 * P_2_prime / x[0]**3 
+        l_dot       = epsilon * alpha * Mach**2 * P_2_prime( np.cos(x[2]) ) / x[0]**3 
 
         return r_dot, p_dot, theta_dot, l_dot
-
 
     def __generate_init_cond__(self):
         # interptcl spacing
@@ -153,23 +164,33 @@ class Anisotropic_simulation(ys.Simulation):
         l0_sign     = self.rng.choice([-1,1])
         l0_mag  = self.rng.uniform(0.1, 2)
         l0      =l0_sign * l0_mag
-        init_cond = np.array([r0, p0, theta0, l0])
-        return init_cond
+        # save initial conditions as an attribute
+        self.x0 = np.array([r0, p0, theta0, l0])
 
+        return self
+    
+    def __convert_to_cart__(self, r, p, theta, l):
+        x_coord = r * np.cos(theta)
+        x_dot   = p * np.cos(theta) - (l / r) * np.sin(theta)
+        y_coord = r * np.sin(theta)
+        y_dot   = p * np.sin(theta) + (l / r) * np.cos(theta)
+        
+        return x_coord, x_dot, y_coord, y_dot
 
     def simulate(self, duration, dt=0.001):
         t = np.arange(0, duration, dt)
         t_span = (t[0], t[-1])
 
-        x0_train = self.__generate_init_cond__()
-        x_clean = solve_ivp(self.__EOM__, t_span, x0_train, t_eval=t, **integrator_keywords).y.T
+        # generate initial conditions randomly
+        self.__generate_init_cond__()
+        x_clean = solve_ivp(self.__EOM__, t_span, self.x0, t_eval=t, **integrator_keywords).y.T
         # save parameters as attributes
         self.duration = duration
         self.dt = dt
-        self.init_cond = x0_train
         # save data as attributes
         self.t = t
         self.x = x_clean
+
         return self
 
     def to_cart(self):
@@ -182,21 +203,48 @@ class Anisotropic_simulation(ys.Simulation):
             x_cart[3] = y_dot
         '''
 
-        # define readable variables
-        r       = self.x[:, 0]
-        p       = self.x[:, 1]
-        theta   = self.x[:, 2]
-        l       = self.x[:, 3]
+        # make feature time series elements of a list
+        x_list = [self.x[:,i] for i in range(self.x.shape[1])]
 
-        # convert to cartesian
-        x_coord = r * np.cos(theta)
-        x_dot   = p * np.cos(theta) - (l / r) * np.sin(self.x[:, 2])
-        y_coord = r * np.sin(theta)
-        y_dot   = p * np.sin(theta) + (l / r) * np.cos(theta)
+        # convert data and init cond to cartesian
+        x_cart_tuple = self.__convert_to_cart__(*x_list)
+        x0_cart_tuple = self.__convert_to_cart__(*self.x0)
 
-        self.x_cart = np.concatenate(
-            (x_coord, x_dot, y_coord, y_dot),
-            axis=1
-        )
+        # save as attributes
+        self.x_cart = np.stack(x_cart_tuple, axis=1)
+        self.x0_cart = np.stack(x0_cart_tuple)
 
         return self
+    
+    def plot(self, type='cart'):
+        if type=='cart':
+            if self.x_cart is None:
+                self.to_cart()
+            x_to_plot = self.x_cart
+            labels = ['$x$', '$v_x$', '$y$', '$v_y$']
+        elif type=='ham':
+            x_to_plot = self.x
+            labels = ['$r$', '$p$', '$\theta$', '$l$']
+        
+        fig, axs = plt.subplots()
+        axs.plot(self.t, x_to_plot, label=labels)
+        fig.legend()
+        fig.tight_layout()
+        fig.show()
+        
+        
+
+    
+def main():
+    # create random number generator
+    seed = 103971
+    rng = np.random.default_rng(seed=seed)
+    # simulate accordingo to anisotropic Hamiltonian
+    duration = 3
+    sim = Anisotropic_simulation(rng=rng)
+    sim.simulate(duration)
+    sim.to_cart()
+    sim.plot()
+    
+if __name__ == '__main__':
+    main()
