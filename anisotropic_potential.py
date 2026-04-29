@@ -29,10 +29,6 @@ import pickle as pkl
 with open('scaling_const.float', 'rb') as f:
     SCALING_CONST = pkl.load(f)
 
-# Plotting parameters
-plt.rcParams.update({'font.size': 18})
-plt.rcParams.update({'figure.figsize': (8,6)})
-
 # create 'integrator_keywords' dict for solve_ivp
 integrator_keywords = {}
 integrator_keywords['rtol'] = 1e-12 # set relative tolerance
@@ -52,7 +48,12 @@ class Anisotropic_simulation(ys.Simulation):
             solves the Yukawa equation of motion for given parameters using solve_ivp from scipy.
             Data is stored in the attribute x.
     '''
-    def __init__(self, rng: np.random.Generator):
+
+    ###############################################################################################
+    # Class Constructor
+    ###############################################################################################
+
+    def __init__(self, rng: np.random.Generator=None):
         super().__init__()
         self.x_cart = None
         self.init_cond = None
@@ -65,10 +66,51 @@ class Anisotropic_simulation(ys.Simulation):
         else: # use rng if passed as an arg
             self.rng = rng
 
+    ###############################################################################################
+    # Getters and setters
+    ###############################################################################################
+
+    @property
+    def x_cart(self):
+        # print("duration getter called") # for testing
+        return self._x_cart
+    @x_cart.setter
+    def x_cart(self, x_cart):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._x_cart = x_cart
+
+    @property
+    def init_cond(self):
+        # print("duration getter called") # for testing
+        return self._init_cond
+    @init_cond.setter
+    def init_cond(self, init_cond):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._init_cond = init_cond
+
+    @property
+    def rng(self):
+        # print("duration getter called") # for testing
+        return self._rng
+    @rng.setter
+    def init_cond(self, rng):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._rng = rng
+
+    ###############################################################################################
+    # Class methods
+    ###############################################################################################
+
     def __EOM__(self, t, x):
         '''
-        Description: Private method for solving the anisotropic, Hamiltonian equations of motion 
-            for a two-body system in two dimensions. The anisotropic potential comes from the
+        Description: Private method with the anisotropic, Hamiltonian equations of motion for a
+            two-body system in two dimensions. The anisotropic potential comes from the 
             dissertation of R. Kompaneets, published in 2007: "Complex plasmas: Interaction 
             potentials and non-Hamiltonian dynamics," pp. 37. The state vector of the system is
             represented by a numpy array `x`, which has the form
