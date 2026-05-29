@@ -29,6 +29,10 @@ import pickle as pkl
 with open('scaling_const.float', 'rb') as f:
     SCALING_CONST = pkl.load(f)
 
+# import Mach number estimateion
+with open('mach.float', 'rb') as f:
+    MACH_NUM = pkl.load(f)
+
 # create 'integrator_keywords' dict for solve_ivp
 integrator_keywords = {}
 integrator_keywords['rtol'] = 1e-12 # set relative tolerance
@@ -134,9 +138,9 @@ class Anisotropic_simulation(ys.Simulation):
             angle between the separation vector and the external electric field, and l is the 
             angular momentum (momentum conjugate to theta).
         '''
-        epsilon = 1 # replace with actual value
-        Mach = 1 # replace with actual value
-
+        global SCALING_CONST
+        global MACH_NUM
+        
         alpha = 4 - np.pi
 
         # this needs to be corrected, I don't think it is going to work
@@ -144,11 +148,11 @@ class Anisotropic_simulation(ys.Simulation):
         P_2_prime = lambda x: legendre_p(2, x, diff_n=1)[1]
 
         r_dot       = x[1]
-        p_dot       = x[3]**2 / x[0]**3 + epsilon * np.exp( - x[0] ) / x[0]**2 + \
-                        epsilon * np.exp( - x[0] ) / x[0] - \
-                        epsilon * 3 * alpha * Mach**2 * P_2( np.cos(x[2]) )/ x[0]**4
+        p_dot       = x[3]**2 / x[0]**3 + SCALING_CONST * np.exp( - x[0] ) / x[0]**2 + \
+                        SCALING_CONST * np.exp( - x[0] ) / x[0] - \
+                        SCALING_CONST * 3 * alpha * MACH_NUM**2 * P_2( np.cos(x[2]) )/ x[0]**4
         theta_dot   = x[3] / x[0]**2
-        l_dot       = epsilon * alpha * Mach**2 * P_2_prime( np.cos(x[2]) ) / x[0]**3 
+        l_dot       = SCALING_CONST * alpha * MACH_NUM**2 * -np.sin(x[2]) * P_2_prime( np.cos(x[2]) ) / x[0]**3 
 
         return r_dot, p_dot, theta_dot, l_dot
 
@@ -162,7 +166,7 @@ class Anisotropic_simulation(ys.Simulation):
         # theta
         theta0  = self.rng.uniform(0, np.pi)
         # angular momentum
-        l0_sign     = self.rng.choice([-1,1])
+        l0_sign = self.rng.choice([-1,1])
         l0_mag  = self.rng.uniform(0.1, 2)
         l0      =l0_sign * l0_mag
         # save initial conditions as an attribute
