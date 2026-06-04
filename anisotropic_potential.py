@@ -144,8 +144,10 @@ class Anisotropic_simulation(ys.Simulation):
         alpha = 4 - np.pi
 
         # this needs to be corrected, I don't think it is going to work
-        P_2 = lambda x: legendre_p(2, x, diff_n=1)[0]
-        P_2_prime = lambda x: legendre_p(2, x, diff_n=1)[1]
+        # P_2 = lambda x: legendre_p(2, x, diff_n=1)[0]
+        P_2 = lambda x: (1/2) * (3*x**2 - 1)
+        # P_2_prime = lambda x: legendre_p(2, x, diff_n=1)[1]
+        P_2_prime = lambda x: 3*x
 
         r_dot       = x[1]
         p_dot       = x[3]**2 / x[0]**3 + SCALING_CONST * np.exp( - x[0] ) / x[0]**2 + \
@@ -155,6 +157,41 @@ class Anisotropic_simulation(ys.Simulation):
         l_dot       = SCALING_CONST * alpha * MACH_NUM**2 * -np.sin(x[2]) * P_2_prime( np.cos(x[2]) ) / x[0]**3 
 
         return r_dot, p_dot, theta_dot, l_dot
+    
+    # def _EOM(self, t, x):
+    #     '''
+    #     Description: Private method with the anisotropic, Hamiltonian equations of motion for a
+    #         two-body system in two dimensions. The anisotropic potential comes from the 
+    #         dissertation of R. Kompaneets, published in 2007: "Complex plasmas: Interaction 
+    #         potentials and non-Hamiltonian dynamics," pp. 37. The state vector of the system is
+    #         represented by a numpy array `x`, which has the form
+    #         x[0] = r (interptcl spacing), 
+    #         x[1] = p (linear momentum), 
+    #         x[2] = theta (angle wrt x-axis, or electric field direction), 
+    #         x[3] = l (angular momentum)
+    #         where r is the interparticle separation, p is its conjugate momentum, theta is the 
+    #         angle between the separation vector and the external electric field, and l is the 
+    #         angular momentum (momentum conjugate to theta).
+    #     '''
+    #     global SCALING_CONST
+    #     global MACH_NUM
+        
+    #     alpha = 4 - np.pi
+
+    #     # this needs to be corrected, I don't think it is going to work
+    #     # P_2 = lambda x: legendre_p(2, x, diff_n=1)[0]
+    #     P_2 = lambda x: (1/2) * (3*x**2 - 1)
+    #     # P_2_prime = lambda x: legendre_p(2, x, diff_n=1)[1]
+    #     P_2_prime = lambda x: 3*x
+
+    #     r_dot       = x[1]
+    #     p_dot       = x[3]**2 / x[0]**3 + SCALING_CONST * np.exp( - x[0] ) / x[0]**2 + \
+    #                     SCALING_CONST * np.exp( - x[0] ) / x[0] - \
+    #                     SCALING_CONST * 3 * alpha * MACH_NUM**2 * (1/2)*(3*np.cos(x[2])**2 - 1)/ x[0]**4
+    #     theta_dot   = x[3] / x[0]**2
+    #     l_dot       = SCALING_CONST * alpha * MACH_NUM**2 * -np.sin(x[2]) * 3 * np.cos(x[2]) / x[0]**3 
+
+    #     return [r_dot, p_dot, theta_dot, l_dot]
 
     def _generate_init_cond(self):
         # interptcl spacing
@@ -255,9 +292,11 @@ class Anisotropic_simulation(ys.Simulation):
         # labels
         axs.set_xlabel("$x$")
         axs.set_ylabel("$y$")
-        axs.legend()
+        axs.legend(loc="upper left")
 
         fig.tight_layout()
+
+        return fig, axs
         
         
 
