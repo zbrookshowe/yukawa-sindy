@@ -266,11 +266,21 @@ class Anisotropic_simulation(ys.Simulation):
         axs.plot(*r1_0, 'o', label="particle 1 start", c=colors[0])
         axs.plot(*r2, label="particle 2", c=colors[1])
         axs.plot(*r2_0, 'x', label="particle 2 start", c=colors[1])
+        # initial velocity arrows
+        stretch = 3e-1
+        scaling = lambda x: stretch * np.sign(x) * np.log(np.abs(x) + 1)
+        r1_0_dot_arrowlength = scaling(r1_0_dot)
+        r2_0_dot_arrowlength = scaling(r2_0_dot)
+        grayvalue = 0.4
+        arrowprops=dict(arrowstyle="-|>",facecolor=f"{grayvalue}",edgecolor=f"{grayvalue}",linewidth=2, alpha=0.75)
+        axs.annotate("", xytext = r1_0, xy = r1_0 + r1_0_dot_arrowlength, arrowprops=arrowprops)
+        axs.annotate("", xytext = r2_0, xy = r2_0 + r2_0_dot_arrowlength, arrowprops=arrowprops)
 
         # labels
         axs.set_xlabel("$x$")
         axs.set_ylabel("$y$")
         axs.legend(loc="upper left")
+        # duration label
         duration_str = f"duration = {self.duration:.3f}" + "$\omega_{pd}^{-1}$"
         axs.text(0.72, 0.92, duration_str, transform=axs.transAxes)
 
