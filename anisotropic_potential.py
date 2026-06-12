@@ -59,9 +59,11 @@ class Anisotropic_simulation(ys.Simulation):
 
     def __init__(self, rng: np.random.Generator=None):
         super().__init__()
-        self.x_cart = None
         self.x0 = None
-        self.x0_cart = None
+        self.r1 = None
+        self.r1_dot = None
+        self.r2 = None
+        self.r2_dot = None
         if rng is None: # create rng if none given
             seed_rng = np.random.default_rng()
             seed_num = seed_rng.integers(10000,100000)
@@ -76,17 +78,6 @@ class Anisotropic_simulation(ys.Simulation):
     ###############################################################################################
 
     @property
-    def x_cart(self):
-        # print("duration getter called") # for testing
-        return self._x_cart
-    @x_cart.setter
-    def x_cart(self, x_cart):
-        # print("duration setter called") # for testing
-        # if duration >= 10:
-        #     raise ValueError("duration must be less than 10")
-        self._x_cart = x_cart
-
-    @property
     def x0(self):
         # print("duration getter called") # for testing
         return self._x0
@@ -96,18 +87,51 @@ class Anisotropic_simulation(ys.Simulation):
         # if duration >= 10:
         #     raise ValueError("duration must be less than 10")
         self._x0 = x0
-
+        
     @property
-    def x0_cart(self):
+    def r1(self):
         # print("duration getter called") # for testing
-        return self._x0_cart
-    @x0_cart.setter
-    def x0_cart(self, x0_cart):
+        return self._r1
+    @r1.setter
+    def r1(self, r1):
         # print("duration setter called") # for testing
         # if duration >= 10:
         #     raise ValueError("duration must be less than 10")
-        self._x0_cart = x0_cart
+        self._r1 = r1
 
+    @property
+    def r1_dot(self):
+        # print("duration getter called") # for testing
+        return self._r1_dot
+    @r1_dot.setter
+    def r1_dot(self, r1_dot):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._r1_dot = r1_dot
+
+    @property
+    def r2(self):
+        # print("duration getter called") # for testing
+        return self._r2
+    @r2.setter
+    def r2(self, r2):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._r2 = r2
+
+    @property
+    def r2_dot(self):
+        # print("duration getter called") # for testing
+        return self._r2_dot
+    @r2_dot.setter
+    def r2_dot(self, r2_dot):
+        # print("duration setter called") # for testing
+        # if duration >= 10:
+        #     raise ValueError("duration must be less than 10")
+        self._r2_dot = r2_dot
+    
     @property
     def rng(self):
         # print("duration getter called") # for testing
@@ -183,28 +207,27 @@ class Anisotropic_simulation(ys.Simulation):
 
         return self
     
-    def _convert_to_cart(self, r, p, theta, l):
+    def _generate_ptcl_coordinates(self):
+
+        # convert from (r, p, theta, l) to cartesian
+        r, p, theta, l = self.x.T
         x_sep       = r * np.cos(theta)
         x_sep_dot   = p * np.cos(theta) - (l / r) * np.sin(theta)
         y_sep       = r * np.sin(theta)
         y_sep_dot   = p * np.sin(theta) + (l / r) * np.cos(theta)
-        
-        return x_sep, x_sep_dot, y_sep, y_sep_dot
-    
-    def _generate_ptcl_coordinates(self, x_sep, x_sep_dot, y_sep, y_sep_dot):
 
         # define position vector and derivative
         r       = np.array([x_sep, y_sep])
         r_dot   = np.array([x_sep_dot, y_sep_dot])
 
         # convert to individual particle positions and trajectories assuming the center of mass
-        # is located at the origin
-        r1      = 0.5 * r
-        r1_dot  = 0.5 * r_dot
-        r2      = -0.5 * r
-        r2_dot  = -0.5 * r_dot
+        # is located at the origin. save as attrs
+        self.r1      = 0.5 * r
+        self.r1_dot  = 0.5 * r_dot
+        self.r2      = -0.5 * r
+        self.r2_dot  = -0.5 * r_dot
 
-        return r1, r1_dot, r2, r2_dot
+        return self
 
     def simulate(self, duration, dt=0.001, x0=None):
         '''
@@ -242,19 +265,13 @@ class Anisotropic_simulation(ys.Simulation):
         self.t = t_actual
         self.x = x_clean
 
-        # convert data and initial conditions to cartesian 2D and save as attributes
-        x_cart_tuple = self._convert_to_cart(*self.x.T)
-        x0_cart_tuple = self._convert_to_cart(*self.x0)
-        self.x_cart = np.stack(x_cart_tuple, axis=1)
-        self.x0_cart = np.stack(x0_cart_tuple)
-
         return self
     
     def plot(self):
         # generate individual particle positions
-        r1, r1_dot, r2, r2_dot = self._generate_ptcl_coordinates(*self.x_cart.T)
-        # generate individual particle initial conditions
-        r1_0, r1_0_dot, r2_0, r2_0_dot = self._generate_ptcl_coordinates(*self.x0_cart)
+        self._generate_ptcl_coordinates()
+        # extract individual particle initial conditions
+        r1_0, r1_0_dot, r2_0, r2_0_dot = self.r1[0], self.r1_dot[0], self.r2[0], self.r2_dot[0]
         # plot trajectories and initial positions
         fig, axs = plt.subplots()
         # square field of view
@@ -262,10 +279,10 @@ class Anisotropic_simulation(ys.Simulation):
         # use blue and green colors
         colors = ['tab:blue', 'tab:green']
         # plot trajectories and starting positions
-        axs.plot(*r1, label="particle 1", c=colors[0])
-        axs.plot(*r1_0, 'o', label="particle 1 start", c=colors[0])
-        axs.plot(*r2, label="particle 2", c=colors[1])
-        axs.plot(*r2_0, 'x', label="particle 2 start", c=colors[1])
+        axs.plot(*self.r1, label="particle 1", c=colors[0])
+        axs.plot(*self.r1_0, 'o', label="particle 1 start", c=colors[0])
+        axs.plot(*self.r2, label="particle 2", c=colors[1])
+        axs.plot(*self.r2_0, 'x', label="particle 2 start", c=colors[1])
         # initial velocity arrows
         stretch = 3e-1
         scaling = lambda x: stretch * np.sign(x) * np.log(np.abs(x) + 1)
