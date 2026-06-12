@@ -270,8 +270,6 @@ class Anisotropic_simulation(ys.Simulation):
     def plot(self):
         # generate individual particle positions
         self._generate_ptcl_coordinates()
-        # extract individual particle initial conditions
-        r1_0, r1_0_dot, r2_0, r2_0_dot = self.r1[0], self.r1_dot[0], self.r2[0], self.r2_dot[0]
         # plot trajectories and initial positions
         fig, axs = plt.subplots()
         # square field of view
@@ -280,18 +278,18 @@ class Anisotropic_simulation(ys.Simulation):
         colors = ['tab:blue', 'tab:green']
         # plot trajectories and starting positions
         axs.plot(*self.r1, label="particle 1", c=colors[0])
-        axs.plot(*self.r1_0, 'o', label="particle 1 start", c=colors[0])
+        axs.plot(*self.r1[:,0], 'o', label="particle 1 start", c=colors[0])
         axs.plot(*self.r2, label="particle 2", c=colors[1])
-        axs.plot(*self.r2_0, 'x', label="particle 2 start", c=colors[1])
+        axs.plot(*self.r2[:,0], 'x', label="particle 2 start", c=colors[1])
         # initial velocity arrows
         stretch = 3e-1
         scaling = lambda x: stretch * np.sign(x) * np.log(np.abs(x) + 1)
-        r1_0_dot_arrowlength = scaling(r1_0_dot)
-        r2_0_dot_arrowlength = scaling(r2_0_dot)
+        r1_0_dot_arrowlength = scaling(self.r1_dot[:,0])
+        r2_0_dot_arrowlength = scaling(self.r2_dot[:,0])
         grayvalue = 0.4
         arrowprops=dict(arrowstyle="-|>",facecolor=f"{grayvalue}",edgecolor=f"{grayvalue}",linewidth=2, alpha=0.75)
-        axs.annotate("", xytext = r1_0, xy = r1_0 + r1_0_dot_arrowlength, arrowprops=arrowprops)
-        axs.annotate("", xytext = r2_0, xy = r2_0 + r2_0_dot_arrowlength, arrowprops=arrowprops)
+        axs.annotate("", xytext = self.r1[:,0], xy = self.r1[:,0] + r1_0_dot_arrowlength, arrowprops=arrowprops)
+        axs.annotate("", xytext = self.r2[:,0], xy = self.r2[:,0] + r2_0_dot_arrowlength, arrowprops=arrowprops)
 
         # labels
         axs.set_xlabel("$x$")
