@@ -207,7 +207,7 @@ class Anisotropic_simulation(ys.Simulation):
 
         return self
     
-    def _generate_ptcl_coordinates(self):
+    def generate_ptcl_coordinates(self):
 
         # convert from (r, p, theta, l) to cartesian
         r, p, theta, l = self.x.T
@@ -269,7 +269,7 @@ class Anisotropic_simulation(ys.Simulation):
     
     def plot(self):
         # generate individual particle positions
-        self._generate_ptcl_coordinates()
+        self.generate_ptcl_coordinates()
         # plot trajectories and initial positions
         fig, axs = plt.subplots()
         # square field of view
@@ -277,7 +277,7 @@ class Anisotropic_simulation(ys.Simulation):
         # use blue and green colors
         colors = ['tab:blue', 'tab:green']
         # plot trajectories and starting positions
-        axs.plot(*self.r1.T, label="particle 1", c=colors[0])
+        axs.plot(*self.r1.T, label="particle 1", c=colors[0]) # transposed because matplotlib cycles through rows, not cols
         axs.plot(*self.r1[0], 'o', label="particle 1 start", c=colors[0])
         axs.plot(*self.r2.T, label="particle 2", c=colors[1])
         axs.plot(*self.r2[0], 'x', label="particle 2 start", c=colors[1])
