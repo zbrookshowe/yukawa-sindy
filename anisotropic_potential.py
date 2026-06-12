@@ -217,8 +217,8 @@ class Anisotropic_simulation(ys.Simulation):
         y_sep_dot   = p * np.sin(theta) + (l / r) * np.cos(theta)
 
         # define position vector and derivative
-        r       = np.array([x_sep, y_sep])
-        r_dot   = np.array([x_sep_dot, y_sep_dot])
+        r       = np.stack([x_sep, y_sep], axis=1)
+        r_dot   = np.stack([x_sep_dot, y_sep_dot], axis=1)
 
         # convert to individual particle positions and trajectories assuming the center of mass
         # is located at the origin. save as attrs
@@ -277,19 +277,19 @@ class Anisotropic_simulation(ys.Simulation):
         # use blue and green colors
         colors = ['tab:blue', 'tab:green']
         # plot trajectories and starting positions
-        axs.plot(*self.r1, label="particle 1", c=colors[0])
-        axs.plot(*self.r1[:,0], 'o', label="particle 1 start", c=colors[0])
-        axs.plot(*self.r2, label="particle 2", c=colors[1])
-        axs.plot(*self.r2[:,0], 'x', label="particle 2 start", c=colors[1])
+        axs.plot(*self.r1.T, label="particle 1", c=colors[0])
+        axs.plot(*self.r1[0], 'o', label="particle 1 start", c=colors[0])
+        axs.plot(*self.r2.T, label="particle 2", c=colors[1])
+        axs.plot(*self.r2[0], 'x', label="particle 2 start", c=colors[1])
         # initial velocity arrows
         stretch = 3e-1
         scaling = lambda x: stretch * np.sign(x) * np.log(np.abs(x) + 1)
-        r1_0_dot_arrowlength = scaling(self.r1_dot[:,0])
-        r2_0_dot_arrowlength = scaling(self.r2_dot[:,0])
+        r1_0_dot_arrowlength = scaling(self.r1_dot[0])
+        r2_0_dot_arrowlength = scaling(self.r2_dot[0])
         grayvalue = 0.4
         arrowprops=dict(arrowstyle="-|>",facecolor=f"{grayvalue}",edgecolor=f"{grayvalue}",linewidth=2, alpha=0.75)
-        axs.annotate("", xytext = self.r1[:,0], xy = self.r1[:,0] + r1_0_dot_arrowlength, arrowprops=arrowprops)
-        axs.annotate("", xytext = self.r2[:,0], xy = self.r2[:,0] + r2_0_dot_arrowlength, arrowprops=arrowprops)
+        axs.annotate("", xytext = self.r1[0], xy = self.r1[0] + r1_0_dot_arrowlength, arrowprops=arrowprops)
+        axs.annotate("", xytext = self.r2[0], xy = self.r2[0] + r2_0_dot_arrowlength, arrowprops=arrowprops)
 
         # labels
         axs.set_xlabel("$x$")
