@@ -1,0 +1,1 @@
+ax.set(xlim=[0, 3], ylim=[-4, 10], xlabel='Time [s]', ylabel='$z$ [m]')

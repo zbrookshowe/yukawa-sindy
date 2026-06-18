@@ -276,11 +276,13 @@ class Anisotropic_simulation(ys.Simulation):
         axs.set_aspect('equal', adjustable='datalim')
         # use blue and green colors
         colors = ['tab:blue', 'tab:green']
+        
         # plot trajectories and starting positions
         axs.plot(*self.r1.T, label="particle 1", c=colors[0]) # transposed because matplotlib cycles through rows, not cols
         axs.plot(*self.r1[0], 'o', label="particle 1 start", c=colors[0])
         axs.plot(*self.r2.T, label="particle 2", c=colors[1])
         axs.plot(*self.r2[0], 'x', label="particle 2 start", c=colors[1])
+        
         # initial velocity arrows
         stretch = 3e-1
         scaling = lambda x: stretch * np.sign(x) * np.log(np.abs(x) + 1)

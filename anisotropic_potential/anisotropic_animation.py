@@ -48,10 +48,31 @@ def anisotropic_animation(duration, dt, x0):
 
     # plot
     fig, axs = plt.subplots()
-    traj1 = axs.plot(*sim.r1[0], label="particle 1")
-    traj2 = axs.plot(*sim.r2[0], label="particle 2")
-    axs.legend()
+    frame = 0 # start with first frame
+    traj1 = axs.plot(*sim.r1[0], label="particle 1")[frame]
+    traj2 = axs.plot(*sim.r2[0], label="particle 2")[frame]
+    
+    # timestamp
+    freq_tex = "$\omega_{pd}^{-1}$"
+    timestamp_str = f"$t = {sim.dt*frame:.2f}$ {freq_tex}"
+    text = axs.text(0.72, 0.92, timestamp_str, transform=axs.transAxes)
 
+    # set aspect ratio, field of view (based on data), and axes labels
+    axs.set(aspect='equal', adjustable='datalim', xlabel='$x$ [$\lambda_{Di}$]', ylabel='$y$ [$\lambda_{Di}$]')
+    axs.legend()
+    fig.tight_layout()
+    fig.set_dpi(200)
+
+    # set interval, wait time at end of video (in sec)
+    interval            = 1 # length of each frame in ms
+    end_delay_s         = 3 # length of delay at end of video in seconds
+
+    # calculate frame number for entire video
+    end_delay_frames    = int( end_delay_s // (1e-3 * interval) )
+    sim_frames          = len(sim.t)
+    n_frames            = sim_frames + end_delay_frames 
+
+    # define update function
     def update(frame):
         # update particle 1
         data1 = sim.r1[:frame]
@@ -59,18 +80,25 @@ def anisotropic_animation(duration, dt, x0):
         # update particle 2
         data2 = sim.r2[:frame]
         traj2.set_data(data2.T)
+        if frame < sim_frames:
+            # update timestamp
+            text.set_text(f"$t = {sim.dt*frame:.2f}$ {freq_tex}")
 
         return (traj1, traj2)
 
-    ani = animation.FuncAnimation(fig=fig, func=update, frames=len(sim.t), interval=30)
+    # create video
+    ani = animation.FuncAnimation(fig=fig, func=update, frames=n_frames, interval=interval)
+
+    return ani
 
 
 
 def main():
     duration = 3
     dt = 1e-3
-    x0 = [1, -2, np.pi/4, -2]
+    x0 = [2, 0, np.pi/8, 0]
     ani = anisotropic_animation(duration, dt, x0)
+    # ani = example_animation()
     plt.show()
 
     # prompt user for input about saving
@@ -86,8 +114,10 @@ def main():
 
     # save if desired
     if user_input == "y":
-        filename = f"simulation_{duration}_{x0}"
-        ani.save(filename="/gifs/"+filename)
+        directory = "anisotropic_potential/gifs/"
+        filename = f"simulation_{duration}_{x0}.gif"
+        writer = animation.PillowWriter(fps=5)
+        ani.save(filename=directory+filename, writer=writer)
 
 
 if __name__ == "__main__":
